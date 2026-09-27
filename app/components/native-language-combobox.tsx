@@ -67,7 +67,7 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
             if (event.key === "ArrowDown") {
               event.preventDefault();
               setOpen(true);
-              setActiveIndex((index) => Math.min(index + (open ? 1 : 0), results.length - 1));
+              setActiveIndex((index) => Math.max(0, Math.min(index + (open ? 1 : 0), results.length - 1)));
             } else if (event.key === "ArrowUp") {
               event.preventDefault();
               setOpen(true);

@@ -32,6 +32,7 @@ function fixture() {
   `);
   globalThis.__nativeLanguageDatabase = { prepare: (sql) => new Statement(database, sql) };
   globalThis.__nativeLanguageUser = { subject: "user-a", email: "a@example.com", name: "A" };
+  globalThis.__nativeLanguageDeeplKey = "shared-test-key:fx";
   return database;
 }
 
@@ -47,7 +48,7 @@ async function compile(entry) {
       name: "native-language-boundaries",
       setup(esbuild) {
         const mocks = new Map([
-          ["cloudflare:workers", "export const env = { DEEPL_DEFAULT_API_KEY: 'shared-test-key:fx' };"],
+          ["cloudflare:workers", "export const env = { get DEEPL_DEFAULT_API_KEY() { return globalThis.__nativeLanguageDeeplKey; } };"],
           ["@/db", "export const getD1 = () => globalThis.__nativeLanguageDatabase;"],
           ["@/lib/auth", `
             export const getCurrentUser = async () => globalThis.__nativeLanguageUser;
@@ -76,6 +77,8 @@ test("native language defaults to Russian, saves only a DeepL target, and scopes
   const database = fixture();
   const route = await compile("app/api/settings/native-language/route.ts");
   const originalFetch = globalThis.fetch;
+  const previousDefaultKey = process.env.DEEPL_DEFAULT_API_KEY;
+  const previousApiKey = process.env.DEEPL_API_KEY;
   globalThis.fetch = async (url) => {
     assert.match(String(url), /api-free\.deepl\.com\/v3\/languages\?resource=translate_text/);
     return Response.json([
@@ -113,8 +116,22 @@ test("native language defaults to Russian, saves only a DeepL target, and scopes
     assert.equal((await saved.json()).nativeLanguage, "uk");
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-a'").get().native_language, "uk");
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-b'").get().native_language, "ru");
+
+    globalThis.__nativeLanguageDeeplKey = undefined;
+    process.env.DEEPL_DEFAULT_API_KEY = "";
+    process.env.DEEPL_API_KEY = "";
+    const withoutKey = await route.GET(new Request("http://local.test/api/settings/native-language"));
+    assert.deepEqual(await withoutKey.json(), { nativeLanguage: "uk", languages: [] });
+    const unsaved = await route.PUT(request("ru"));
+    assert.equal(unsaved.status, 503);
+    assert.deepEqual(await unsaved.json(), { error: "Translation is not configured yet." });
+    assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-a'").get().native_language, "uk");
   } finally {
     globalThis.fetch = originalFetch;
+    if (previousDefaultKey === undefined) delete process.env.DEEPL_DEFAULT_API_KEY;
+    else process.env.DEEPL_DEFAULT_API_KEY = previousDefaultKey;
+    if (previousApiKey === undefined) delete process.env.DEEPL_API_KEY;
+    else process.env.DEEPL_API_KEY = previousApiKey;
     database.close();
   }
 });

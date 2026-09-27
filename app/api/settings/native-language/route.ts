@@ -45,6 +45,9 @@ export async function PUT(request: Request) {
     return noStore({ nativeLanguage: selected.code });
   } catch (error) {
     if (error instanceof SyntaxError) return noStore({ error: "Invalid request." }, 400);
+    if (error instanceof DeepLError) {
+      return noStore({ error: error.message }, error.code === "not_configured" ? 503 : 502);
+    }
     console.error("Native language PUT failed:", error);
     return noStore({ error: "Could not save native language." }, 502);
   }

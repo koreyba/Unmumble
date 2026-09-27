@@ -196,7 +196,7 @@ async function compileRoute() {
                 this.code = code;
               }
             }
-            export async function translateEnglishToRussian(texts) {
+            export async function translateEnglishToNativeLanguage(texts) {
               globalThis.__phrasesRouteTranslationCalls += 1;
               const translations = globalThis.__phrasesRouteTranslations;
               return texts.map((text, index) => translations[index] || ("translated:" + text));

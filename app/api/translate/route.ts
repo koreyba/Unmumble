@@ -1,4 +1,4 @@
-import { cleanTranslationText, DeepLError, translateEnglishToRussian } from "@/lib/deepl";
+import { cleanTranslationText, DeepLError, translateEnglishToNativeLanguage } from "@/lib/deepl";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (!text) return Response.json({ error: "Select a word or phrase." }, { status: 400 });
     if (text.length > 500) return Response.json({ error: "Select no more than 500 characters to translate." }, { status: 400 });
 
-    const [translation] = await translateEnglishToRussian(
+    const [translation] = await translateEnglishToNativeLanguage(
       [text],
       context && context !== text ? context : "",
       { request },

@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN native_language TEXT NOT NULL DEFAULT 'ru';

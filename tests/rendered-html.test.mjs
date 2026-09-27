@@ -437,10 +437,10 @@ test("DeepL credentials stay in the shared server helper", async () => {
 
   assert.match(helper, /getAuthenticatedUser/);
   assert.match(helper, /Authorization: `DeepL-Auth-Key \$\{apiKey\}`/);
-  assert.match(helper, /target_lang: "RU"/);
+  assert.match(helper, /target_lang: targetLanguage/);
   assert.match(helper, /AbortController/);
   assert.match(helper, /DEEPL_TIMEOUT_MS/);
-  assert.match(helper, /readIntegrationSecret\(user\.subject, "deepl"\)/);
+  assert.match(helper, /readIntegrationSecret\(userId, "deepl"\)/);
   assert.doesNotMatch(helper, /hasIntegrationSession/);
   assert.match(helper, /request\?: Request/);
 });
@@ -461,7 +461,7 @@ test("learning phrases persist and render their translation", async () => {
   assert.match(route, /createVocabularyRepository\(db\)\.addEntry/);
   assert.match(repository, /createVocabularyMutationPlanner/);
   assert.match(repository, /await db\.batch\(plan\.statements\)/);
-  assert.match(route, /translateEnglishToRussian/);
+  assert.match(route, /translateEnglishToNativeLanguage/);
   assert.match(route, /optionalTranslationForPhrase/);
   assert.match(route, /translationPending/);
   assert.match(route, /COALESCE\(progress\.status, 'pick'\) != 'pick'/);
@@ -839,7 +839,7 @@ test("library and integration surfaces use English UI labels", async () => {
 
   for (const surface of surfaces) assert.doesNotMatch(surface, /[\u0400-\u04FF]/);
   assert.match(surfaces[0], /Train connected speech\./);
-  assert.match(surfaces[1], /Translate English phrases into Russian\./);
+  assert.match(surfaces[1], /Translate English phrases into your native language\./);
   assert.match(surfaces[2], /<html lang="en" suppressHydrationWarning>/);
 });
 

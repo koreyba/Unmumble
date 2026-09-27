@@ -35,6 +35,11 @@ test("Settings searches DeepL languages and saves the native language", async ({
   await expect(search).toHaveValue("Ukrainian");
   await expect(page.getByText("Native language saved. New translations will use it.")).toBeVisible();
   expect(nativeLanguage).toBe("uk");
+  await search.click();
+  await search.fill("de");
+  await search.press("Shift+Tab");
+  await expect(page.getByRole("listbox", { name: "DeepL target languages" })).toHaveCount(0);
+  await expect(search).toHaveValue("Ukrainian");
 });
 
 test("Removing the only DeepL key clears the available languages", async ({ page }) => {

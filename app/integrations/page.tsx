@@ -229,7 +229,7 @@ export default function IntegrationsPage() {
             disabled={savingLanguage || languages.length === 0}
             onSelect={(code) => void saveLanguage(code)}
           />
-          {savingLanguage && <span className="native-language-status" role="status">Saving…</span>}
+          {savingLanguage && <output className="native-language-status">Saving…</output>}
           {languageError && <p className="native-language-error" role="alert">{languageError}</p>}
           {!languageError && languages.length === 0 && (
             <p className="native-language-hint">Connect DeepL to choose a language.</p>

@@ -90,7 +90,7 @@ export async function listDeeplTargetLanguages(userId: string) {
   const data: unknown = await response.json().catch(() => null);
   if (!Array.isArray(data)) throw new DeepLError("Could not load DeepL languages.", "upstream");
   return data.filter((item: DeepLLanguage) =>
-    item && item.usable_as_target === true && item.status === "stable"
+    item?.usable_as_target === true && item.status === "stable"
     && typeof item.lang === "string" && typeof item.name === "string"
     && !/^en(?:-|$)/i.test(item.lang)
   ).map((item: DeepLLanguage) => ({ code: item.lang as string, name: item.name as string }))

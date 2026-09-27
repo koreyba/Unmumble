@@ -4,12 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 
 export type NativeLanguageOption = { code: string; name: string };
 
-type Props = {
+type Props = Readonly<{
   languages: NativeLanguageOption[];
   value: string;
   onSelect: (code: string) => void;
   disabled?: boolean;
-};
+}>;
 
 export function NativeLanguageCombobox({ languages, value, onSelect, disabled = false }: Props) {
   const listId = useId();
@@ -37,7 +37,16 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
   }
 
   return (
-    <div className="native-language-combobox" ref={root}>
+    <div
+      className="native-language-combobox"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+          setQuery("");
+        }
+      }}
+      ref={root}
+    >
       <label htmlFor="native-language-search">Native Language</label>
       <div className="native-language-control">
         <span className="native-language-control-icon" aria-hidden="true">🌐</span>

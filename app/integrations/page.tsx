@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedInSiteAccount } from "@/app/components/signed-in-site-account";
+import { NativeLanguageCombobox, type NativeLanguageOption } from "@/app/components/native-language-combobox";
 import { SiteNavigation } from "@/app/components/site-navigation";
 import {
   accountSession,
@@ -16,11 +17,16 @@ type Integration = {
   source: "integrations" | "default" | null;
 };
 type IntegrationsResponse = { integrations?: Integration[]; error?: string };
+type LanguageResponse = { nativeLanguage?: string; languages?: NativeLanguageOption[]; error?: string };
 
 export default function IntegrationsPage() {
   const [session, setSession] = useState<AccountSessionUser | null>(null);
   const [integration, setIntegration] = useState<Integration | null>(null);
   const [key, setKey] = useState("");
+  const [nativeLanguage, setNativeLanguage] = useState("ru");
+  const [languages, setLanguages] = useState<NativeLanguageOption[]>([]);
+  const [savingLanguage, setSavingLanguage] = useState(false);
+  const [languageError, setLanguageError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -33,19 +39,57 @@ export default function IntegrationsPage() {
     setIntegration(data.integrations?.[0] || null);
   }, []);
 
+  const loadLanguages = useCallback(async () => {
+    const response = await fetch("/api/settings/native-language", { cache: "no-store" });
+    const data = await response.json() as LanguageResponse;
+    if (!response.ok) throw new Error(data.error || "Could not load available languages.");
+    setNativeLanguage(data.nativeLanguage || "ru");
+    setLanguages(data.languages || []);
+    setLanguageError("");
+  }, []);
+
   useEffect(() => {
     void (async () => {
       try {
         const currentSession = await accountSession();
         setSession(currentSession);
-        if (currentSession) await loadStatus();
+        if (currentSession) {
+          await Promise.all([
+            loadStatus(),
+            loadLanguages().catch((reason) => {
+              setLanguageError(reason instanceof Error ? reason.message : "Could not load available languages.");
+            }),
+          ]);
+        }
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Could not check integrations.");
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadStatus]);
+  }, [loadStatus, loadLanguages]);
+
+  async function saveLanguage(code: string) {
+    if (code === nativeLanguage) return;
+    setSavingLanguage(true);
+    setLanguageError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/settings/native-language", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nativeLanguage: code }),
+      });
+      const data = await response.json() as LanguageResponse;
+      if (!response.ok) throw new Error(data.error || "Could not save native language.");
+      setNativeLanguage(data.nativeLanguage || code);
+      setNotice("Native language saved. New translations will use it.");
+    } catch (reason) {
+      setLanguageError(reason instanceof Error ? reason.message : "Could not save native language.");
+    } finally {
+      setSavingLanguage(false);
+    }
+  }
 
   async function saveKey() {
     if (!key.trim()) return;
@@ -65,6 +109,10 @@ export default function IntegrationsPage() {
         ? { ...current, configured: true, source: "integrations" }
         : { provider: "deepl", label: "DeepL", configured: true, source: "integrations" });
       setNotice("Personal key saved. It will be used instead of the default key.");
+      await loadLanguages().catch((reason) => {
+        setLanguages([]);
+        setLanguageError(reason instanceof Error ? reason.message : "Could not load available languages.");
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not save the API key.");
     } finally {
@@ -93,6 +141,10 @@ export default function IntegrationsPage() {
           ? "Personal key removed. The shared beta key is now active."
           : "The key saved on this page was deleted."
       );
+      await loadLanguages().catch((reason) => {
+        setLanguages([]);
+        setLanguageError(reason instanceof Error ? reason.message : "Could not load available languages.");
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not delete the API key.");
     } finally {
@@ -161,12 +213,39 @@ export default function IntegrationsPage() {
       {error && <div className="notice error" role="alert">{error}</div>}
       {notice && <div className="notice success" role="status">{notice}</div>}
 
+      <div className="settings-card-stack">
+      <section className="integration-card native-language-card" aria-labelledby="native-language-title">
+        <div className="integration-card-heading">
+          <div>
+            <p className="integration-label">Language</p>
+            <h2 id="native-language-title">Native Language</h2>
+            <p>Choose the language for new DeepL translations.</p>
+          </div>
+        </div>
+        <div className="native-language-field">
+          <NativeLanguageCombobox
+            languages={languages}
+            value={nativeLanguage}
+            disabled={savingLanguage || languages.length === 0}
+            onSelect={(code) => void saveLanguage(code)}
+          />
+          {savingLanguage && <output className="native-language-status">Saving…</output>}
+          {languageError && <p className="native-language-error" role="alert">{languageError}</p>}
+          {!languageError && languages.length === 0 && (
+            <p className="native-language-hint">
+              {integration?.configured ? "DeepL languages are temporarily unavailable." : "Connect DeepL to choose a language."}
+            </p>
+          )}
+          <p className="native-language-hint">Saved translations keep their current language.</p>
+        </div>
+      </section>
+
       <section className="integration-card" aria-labelledby="deepl-title">
         <div className="integration-card-heading">
           <div>
             <p className="integration-label">Translation</p>
             <h2 id="deepl-title">DeepL</h2>
-            <p>Translate English phrases into Russian.</p>
+            <p>Translate English phrases into your native language.</p>
           </div>
           <span className={integration?.configured ? "integration-status configured" : "integration-status"}>
             {loading ? "Checking…" : integration?.configured ? (integration?.source === "default" ? "Connected (Beta)" : "Connected") : "Not connected"}
@@ -205,6 +284,7 @@ export default function IntegrationsPage() {
         </div>
         <p className="integration-security">The key is sent over HTTPS, encrypted on the Worker with AES-GCM, and stored in D1. It is never included in API responses.</p>
       </section>
+      </div>
       </main>
     </>
   );

@@ -53,6 +53,14 @@ const commonTestPlugin = {
       `,
       loader: "js",
     }));
+    esbuild.onResolve({ filter: /^@\/lib\/native-language$/ }, () => ({
+      path: "@/lib/native-language",
+      namespace: "mock-native-language",
+    }));
+    esbuild.onLoad({ filter: /.*/, namespace: "mock-native-language" }, () => ({
+      contents: `export const DEFAULT_NATIVE_LANGUAGE = "ru"; export async function getNativeLanguage() { return "ru"; }`,
+      loader: "js",
+    }));
   },
 };
 
@@ -115,7 +123,7 @@ test("getDefaultDeeplApiKey resolves from worker env or process env", async () =
   delete globalThis.__mockWorkerEnv;
 });
 
-test("translateEnglishToRussian uses custom key or falls back to default key", async () => {
+test("translation uses custom key or falls back to default key", async () => {
   const deepl = await compileEntry("lib/deepl.ts");
   const translateRequest = new Request("https://unmumble.online/api/translate");
 
@@ -125,7 +133,7 @@ test("translateEnglishToRussian uses custom key or falls back to default key", a
   globalThis.__mockUserSecrets = { "user-test": { deepl: "user-custom-key:fx" } };
 
   await withMockDeeplFetch("Привет", async (getAuth) => {
-    const res = await deepl.translateEnglishToRussian(["Hello"], "", { request: translateRequest });
+    const res = await deepl.translateEnglishToNativeLanguage(["Hello"], "", { request: translateRequest });
     assert.deepEqual(res, ["Привет"]);
     assert.equal(getAuth(), "DeepL-Auth-Key user-custom-key:fx");
   });
@@ -133,7 +141,7 @@ test("translateEnglishToRussian uses custom key or falls back to default key", a
   // Case B: User has NO custom key -> falls back to default key
   globalThis.__mockUserSecrets = {};
   await withMockDeeplFetch("Мир", async (getAuth) => {
-    const res = await deepl.translateEnglishToRussian(["World"], "", { request: translateRequest });
+    const res = await deepl.translateEnglishToNativeLanguage(["World"], "", { request: translateRequest });
     assert.deepEqual(res, ["Мир"]);
     assert.equal(getAuth(), "DeepL-Auth-Key default-system-key:fx");
   });
@@ -144,7 +152,7 @@ test("translateEnglishToRussian uses custom key or falls back to default key", a
   delete process.env.DEEPL_API_KEY;
 
   await assert.rejects(
-    () => deepl.translateEnglishToRussian(["Hi"], "", { request: translateRequest }),
+    () => deepl.translateEnglishToNativeLanguage(["Hi"], "", { request: translateRequest }),
     (err) => err.code === "not_configured",
   );
 

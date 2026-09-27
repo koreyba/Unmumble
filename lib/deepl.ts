@@ -4,6 +4,7 @@ import {
   readIntegrationSecret,
 } from "@/lib/integration-secrets";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { DEFAULT_NATIVE_LANGUAGE, getNativeLanguage } from "@/lib/native-language";
 
 type TranslationResponse = {
   translations?: Array<{ text?: string }>;
@@ -45,7 +46,58 @@ export function cleanTranslationText(value: unknown) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 }
 
-export async function translateEnglishToRussian(
+async function deeplApiKey(userId?: string) {
+  let apiKey: string | undefined;
+  if (userId) {
+    try {
+      apiKey = (await readIntegrationSecret(userId, "deepl")) || undefined;
+    } catch (error) {
+      if (!(error instanceof IntegrationSecretError)) throw error;
+    }
+  }
+  apiKey ||= getDefaultDeeplApiKey();
+  if (!apiKey) throw new DeepLError("Translation is not configured yet.", "not_configured");
+  return apiKey;
+}
+
+function deeplEndpoint(apiKey: string, path: string) {
+  return `${apiKey.endsWith(":fx") ? "https://api-free.deepl.com" : "https://api.deepl.com"}${path}`;
+}
+
+type DeepLLanguage = {
+  lang?: unknown;
+  name?: unknown;
+  usable_as_target?: unknown;
+  status?: unknown;
+};
+
+export async function listDeeplTargetLanguages(userId: string) {
+  const apiKey = await deeplApiKey(userId);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEEPL_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(deeplEndpoint(apiKey, "/v3/languages?resource=translate_text"), {
+      headers: { Authorization: `DeepL-Auth-Key ${apiKey}` },
+      signal: controller.signal,
+    });
+  } catch {
+    throw new DeepLError("Could not load DeepL languages.", "upstream");
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!response.ok) throw new DeepLError("Could not load DeepL languages.", "upstream");
+  const data: unknown = await response.json().catch(() => null);
+  if (!Array.isArray(data)) throw new DeepLError("Could not load DeepL languages.", "upstream");
+  return data.filter((item: DeepLLanguage) =>
+    item?.usable_as_target === true && item.status === "stable"
+    && typeof item.lang === "string" && typeof item.name === "string"
+    && !/^en(?:-|$)/i.test(item.lang)
+  ).map((item: DeepLLanguage) => ({ code: item.lang as string, name: item.name as string }))
+    .sort((a, b) => a.name.localeCompare(b.name, "en"));
+}
+
+export async function translateEnglishToNativeLanguage(
   texts: string[],
   context = "",
   options: { request?: Request } = {},
@@ -53,31 +105,15 @@ export async function translateEnglishToRussian(
   const cleaned = texts.map(cleanTranslationText).filter(Boolean);
   if (!cleaned.length) return [];
 
-  let apiKey: string | undefined;
   const user = options.request ? getAuthenticatedUser(options.request) : null;
-  if (user) {
-    try {
-      apiKey = (await readIntegrationSecret(user.subject, "deepl")) || undefined;
-    } catch (error) {
-      if (!(error instanceof IntegrationSecretError)) throw error;
-    }
-  }
-  if (!apiKey) {
-    apiKey = getDefaultDeeplApiKey();
-  }
-  if (!apiKey) {
-    throw new DeepLError("Translation is not configured yet.", "not_configured");
-  }
-
-  const endpoint = apiKey.endsWith(":fx")
-    ? "https://api-free.deepl.com/v2/translate"
-    : "https://api.deepl.com/v2/translate";
+  const apiKey = await deeplApiKey(user?.subject);
+  const targetLanguage = user ? await getNativeLanguage(user.subject) : DEFAULT_NATIVE_LANGUAGE;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEEPL_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(endpoint, {
+    response = await fetch(deeplEndpoint(apiKey, "/v2/translate"), {
       method: "POST",
       headers: {
         Authorization: `DeepL-Auth-Key ${apiKey}`,
@@ -86,7 +122,7 @@ export async function translateEnglishToRussian(
       body: JSON.stringify({
         text: cleaned,
         source_lang: "EN",
-        target_lang: "RU",
+        target_lang: targetLanguage,
         ...(cleanTranslationText(context) ? { context: cleanTranslationText(context) } : {}),
       }),
       signal: controller.signal,

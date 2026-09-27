@@ -7,7 +7,7 @@ import {
   VOCABULARY_LEGACY_MEANING_ID,
 } from "@/lib/vocabulary/repository";
 import { createVocabularyMutationPlanner } from "@/lib/vocabulary/mutations";
-import { DeepLError, translateEnglishToRussian } from "@/lib/deepl";
+import { DeepLError, translateEnglishToNativeLanguage } from "@/lib/deepl";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +101,7 @@ export async function backfillTranslations(userId: string, request: Request) {
     const repository = createVocabularyRepository(db);
     for (let offset = 0; offset < missing.results.length; offset += 50) {
       const rows = missing.results.slice(offset, offset + 50);
-      const translations = await translateEnglishToRussian(rows.map((row) => row.text), "", { request });
+      const translations = await translateEnglishToNativeLanguage(rows.map((row) => row.text), "", { request });
       for (const [index, row] of rows.entries()) {
         if (row.source_type === "preset") {
           await repository.addMeaning(userId, {
@@ -123,7 +123,7 @@ export async function backfillTranslations(userId: string, request: Request) {
 
 async function translationForPhrase(text: string, existing = "", request?: Request) {
   if (existing) return existing;
-  const [translation] = await translateEnglishToRussian([text], "", { request });
+  const [translation] = await translateEnglishToNativeLanguage([text], "", { request });
   return translation;
 }
 

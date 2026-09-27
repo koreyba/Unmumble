@@ -14,6 +14,7 @@ description: Behavioral checks and external evidence boundary
 - [x] Search by code and keyboard selection work. `tests/native-language-combobox.test.mjs`.
 - [x] Settings loads, filters, saves, and displays the choice on desktop/mobile Chromium. `tests/e2e/native-language-settings.spec.ts` uses mocked APIs.
 - [x] Removing the only DeepL key clears stale picker options. The same browser suite covers this on desktop/mobile.
+- [x] A temporary DeepL language-list failure keeps the saved choice visible and disables selection. Route and browser tests cover this boundary.
 - [x] Adjacent phrase, chat selection, migration, and rendered contracts pass targeted Node suites.
 - [ ] A deployed preview with migrated D1 and a real DeepL key returns a translation in the saved language. This is deployment evidence.
 

@@ -13,12 +13,12 @@ export async function GET(request: Request) {
   if (!user) return unauthorizedResponse();
   try {
     const nativeLanguage = await getNativeLanguage(user.subject);
-    const languages = await listDeeplTargetLanguages(user.subject);
+    const languages = await listDeeplTargetLanguages(user.subject).catch((error) => {
+      if (error instanceof DeepLError) return [];
+      throw error;
+    });
     return noStore({ nativeLanguage, languages });
   } catch (error) {
-    if (error instanceof DeepLError && error.code === "not_configured") {
-      return noStore({ nativeLanguage: await getNativeLanguage(user.subject), languages: [] });
-    }
     console.error("Native language GET failed:", error);
     return noStore({ error: "Could not load available languages." }, 502);
   }

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("Settings searches DeepL languages and saves the native language", async ({ page }) => {
   let nativeLanguage = "ru";
+  let languagesAvailable = true;
   await page.route("**/api/session", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({ user: { id: "user-1", email: "learner@example.com", name: "Learner" } }),
@@ -17,11 +18,11 @@ test("Settings searches DeepL languages and saves the native language", async ({
     }
     return route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ nativeLanguage, languages: [
+      body: JSON.stringify({ nativeLanguage, languages: languagesAvailable ? [
         { code: "de", name: "German" },
         { code: "ru", name: "Russian" },
         { code: "uk", name: "Ukrainian" },
-      ] }),
+      ] : [] }),
     });
   });
 
@@ -40,6 +41,11 @@ test("Settings searches DeepL languages and saves the native language", async ({
   await search.press("Shift+Tab");
   await expect(page.getByRole("listbox", { name: "DeepL target languages" })).toHaveCount(0);
   await expect(search).toHaveValue("Ukrainian");
+  languagesAvailable = false;
+  await page.reload();
+  await expect(search).toHaveValue("uk");
+  await expect(search).toBeDisabled();
+  await expect(page.getByText("DeepL languages are temporarily unavailable.")).toBeVisible();
 });
 
 test("Removing the only DeepL key clears the available languages", async ({ page }) => {

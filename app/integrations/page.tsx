@@ -232,7 +232,9 @@ export default function IntegrationsPage() {
           {savingLanguage && <output className="native-language-status">Saving…</output>}
           {languageError && <p className="native-language-error" role="alert">{languageError}</p>}
           {!languageError && languages.length === 0 && (
-            <p className="native-language-hint">Connect DeepL to choose a language.</p>
+            <p className="native-language-hint">
+              {integration?.configured ? "DeepL languages are temporarily unavailable." : "Connect DeepL to choose a language."}
+            </p>
           )}
           <p className="native-language-hint">Saved translations keep their current language.</p>
         </div>

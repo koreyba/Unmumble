@@ -117,6 +117,12 @@ test("native language defaults to Russian, saves only a DeepL target, and scopes
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-a'").get().native_language, "uk");
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-b'").get().native_language, "ru");
 
+    const mockFetch = globalThis.fetch;
+    globalThis.fetch = async () => { throw new Error("DeepL unavailable"); };
+    const unavailable = await route.GET(new Request("http://local.test/api/settings/native-language"));
+    assert.deepEqual(await unavailable.json(), { nativeLanguage: "uk", languages: [] });
+    globalThis.fetch = mockFetch;
+
     globalThis.__nativeLanguageDeeplKey = undefined;
     process.env.DEEPL_DEFAULT_API_KEY = "";
     process.env.DEEPL_API_KEY = "";

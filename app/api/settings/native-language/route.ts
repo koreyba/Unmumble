@@ -8,13 +8,37 @@ function noStore(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+async function readBoundedBody(request: Request) {
+  const limit = 1_000;
+  const declaredLength = Number(request.headers.get("Content-Length"));
+  if (declaredLength > limit) return null;
+  const reader = request.body?.getReader();
+  if (!reader) return "";
+  const bytes = new Uint8Array(limit);
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (length + value.byteLength > limit) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    bytes.set(value, length);
+    length += value.byteLength;
+  }
+  return new TextDecoder().decode(bytes.subarray(0, length));
+}
+
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthorizedResponse();
   try {
     const nativeLanguage = await getNativeLanguage(user.subject);
     const languages = await listDeeplTargetLanguages(user.subject).catch((error) => {
-      if (error instanceof DeepLError) return [];
+      if (error instanceof DeepLError) {
+        if (error.code !== "not_configured") console.error("Native language list failed:", error);
+        return [];
+      }
       throw error;
     });
     return noStore({ nativeLanguage, languages });
@@ -31,8 +55,8 @@ export async function PUT(request: Request) {
     if (request.headers.get("Origin") !== new URL(request.url).origin) {
       return noStore({ error: "Invalid request origin." }, 403);
     }
-    const body = await request.text();
-    if (body.length > 1000) return noStore({ error: "The request is too large." }, 413);
+    const body = await readBoundedBody(request);
+    if (body === null) return noStore({ error: "The request is too large." }, 413);
     const payload = JSON.parse(body) as { nativeLanguage?: unknown };
     if (!payload || typeof payload !== "object" || typeof payload.nativeLanguage !== "string") {
       return noStore({ error: "Choose a language." }, 400);

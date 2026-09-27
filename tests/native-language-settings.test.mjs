@@ -109,6 +109,12 @@ test("native language defaults to Russian, saves only a DeepL target, and scopes
       body: "null",
     }));
     assert.equal(invalid.status, 400);
+    const oversized = await route.PUT(new Request("http://local.test/api/settings/native-language", {
+      method: "PUT",
+      headers: { Origin: "http://local.test", "Content-Type": "application/json" },
+      body: JSON.stringify({ nativeLanguage: "uk", padding: "é".repeat(600) }),
+    }));
+    assert.equal(oversized.status, 413);
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-a'").get().native_language, "ru");
 
     const saved = await route.PUT(request("uk"));
@@ -118,10 +124,18 @@ test("native language defaults to Russian, saves only a DeepL target, and scopes
     assert.equal(database.prepare("SELECT native_language FROM users WHERE id = 'user-b'").get().native_language, "ru");
 
     const mockFetch = globalThis.fetch;
+    const originalConsoleError = console.error;
+    let listFailures = 0;
     globalThis.fetch = async () => { throw new Error("DeepL unavailable"); };
-    const unavailable = await route.GET(new Request("http://local.test/api/settings/native-language"));
-    assert.deepEqual(await unavailable.json(), { nativeLanguage: "uk", languages: [] });
-    globalThis.fetch = mockFetch;
+    console.error = (message) => { if (message === "Native language list failed:") listFailures++; };
+    try {
+      const unavailable = await route.GET(new Request("http://local.test/api/settings/native-language"));
+      assert.deepEqual(await unavailable.json(), { nativeLanguage: "uk", languages: [] });
+      assert.equal(listFailures, 1);
+    } finally {
+      globalThis.fetch = mockFetch;
+      console.error = originalConsoleError;
+    }
 
     globalThis.__nativeLanguageDeeplKey = undefined;
     process.env.DEEPL_DEFAULT_API_KEY = "";

@@ -222,7 +222,7 @@ test("caption navigation is ready before the first YouGlish caption callback", a
   assert.ok(controllerIndex > helperIndex, "the helper must load before the trainer controller");
 });
 
-test("YouGlish videos and Tatoeba tracks default to random and can be saved per phrase", async () => {
+test("YouGlish uses a direct phrase query and Tatoeba tracks stay random", async () => {
   const trainer = await readFile(
     new URL("../public/trainer.html", import.meta.url),
     "utf8",
@@ -241,14 +241,14 @@ test("YouGlish videos and Tatoeba tracks default to random and can be saved per 
   );
   assert.match(trainer, /id="exampleMode"/);
   assert.match(trainer, /id="saveExampleBtn"/);
-  assert.match(trainer, /`\$\{query\} :r`/);
+  assert.match(trainer, /`"\$\{query\}"`/);
   assert.match(trainer, /`\$\{query\} #\$\{example\.external_id\}`/);
   assert.match(trainer, /event && event\.video/);
   assert.match(trainer, /provider: state\.source/);
   assert.match(trainer, /audioId: Number\(example\.external_id\)/);
   assert.match(trainer, /tatoebaTracks = orderProviderItems/);
   assert.match(trainer, /function orderProviderItems\(items\) \{\s*return shuffled\(items\);\s*\}/);
-  assert.match(trainer, /fetchYouglish\(`\$\{query\} :r`, query\);/);
+  assert.match(trainer, /fetchYouglish\(`"\$\{query\}"`, query\);/);
   assert.doesNotMatch(trainer, /data-example-order=/);
   assert.doesNotMatch(examplesRoute, /CREATE TABLE IF NOT EXISTS phrase_examples/);
   assert.match(examplesRoute, /LEFT JOIN phrase_examples/);

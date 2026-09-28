@@ -10,6 +10,108 @@ import {
   observeVideo,
 } from "./helpers/trainer-harness.mjs";
 
+test("All mode searches the selected text as one exact YouGlish query", async t => {
+  for (const phrase of ["it was there", "of in my life", "probably", "I don't know what to do"]) {
+    const trainer = await createTrainer({
+      url: `https://listen-to-learn.test/trainer?phrase=${encodeURIComponent(phrase)}&phraseId=phrase-1`,
+    });
+    t.after(trainer.close);
+
+    assert.deepEqual(trainer.widgetCalls.fetch, [[`"${phrase}"`, "english", "us"]]);
+    assert.doesNotMatch(trainer.providerStatus.textContent, /random/i);
+  }
+});
+
+test("All mode skips a YouGlish clip whose marked words do not form the phrase", async t => {
+  const trainer = await createTrainer({
+    url: "https://listen-to-learn.test/trainer?phrase=it+was+there&phraseId=phrase-1",
+  });
+  t.after(trainer.close);
+
+  trainer.events.onFetchDone({ totalResult: 3 });
+  trainer.events.onVideoChange({ trackNumber: 0, video: "badclip0001" });
+  const looseCaption = caption(
+    "loose",
+    10,
+    "[[[was]]] I forgot who [[[it]]] [[[was]]] but [[[there]]] [[[was]]] a talk",
+    "badclip0001",
+  );
+  trainer.events.onCaptionChange(looseCaption);
+  trainer.events.onCaptionChange(looseCaption);
+
+  assert.equal(trainer.widgetCalls.next, 1);
+  assert.equal(trainer.controls.captionText.querySelectorAll(".query-word").length, 0);
+
+  trainer.events.onVideoChange({ trackNumber: 1, video: "goodclip001" });
+  trainer.events.onCaptionChange(caption(
+    "exact",
+    20,
+    "Yes, [[[it]]] [[[was]]] [[[there]]] the whole time.",
+    "goodclip001",
+  ));
+
+  assert.equal(trainer.widgetCalls.next, 1);
+  assert.match(trainer.controls.captionText.textContent, /it was there/);
+});
+
+test("All mode rejects punctuation that interrupts an unpunctuated phrase", async t => {
+  const trainer = await createTrainer({
+    url: "https://listen-to-learn.test/trainer?phrase=it+was+there&phraseId=phrase-1",
+  });
+  t.after(trainer.close);
+
+  trainer.events.onFetchDone({ totalResult: 2 });
+  trainer.events.onVideoChange({ trackNumber: 0, video: "goodclip002" });
+  trainer.events.onCaptionChange(caption(
+    "exact",
+    20,
+    "But for me [[[it]]] [[[was]]], [[[there]]] all along.",
+    "goodclip002",
+  ));
+
+  assert.equal(trainer.widgetCalls.next, 1);
+  assert.equal(trainer.controls.captionText.querySelectorAll(".query-word").length, 0);
+});
+
+test("All mode accepts the selected punctuation when it appears in the caption", async t => {
+  const trainer = await createTrainer({
+    url: "https://listen-to-learn.test/trainer?phrase=that%27s+it%2C+isn%27t+it&phraseId=phrase-1",
+  });
+  t.after(trainer.close);
+
+  trainer.events.onVideoChange({ trackNumber: 0, video: "goodclip003" });
+  trainer.events.onCaptionChange(caption(
+    "exact",
+    20,
+    "Yes, [[[that's it, isn't it]]] the answer?",
+    "goodclip003",
+  ));
+
+  assert.equal(trainer.widgetCalls.next, 0);
+  assert.match(trainer.controls.captionText.textContent, /that's it, isn't it/);
+});
+
+test("All mode reports no exact example when the last provider clip is loose", async t => {
+  const trainer = await createTrainer({
+    url: "https://listen-to-learn.test/trainer?phrase=it+was+there&phraseId=phrase-1",
+  });
+  t.after(trainer.close);
+
+  trainer.events.onFetchDone({ totalResult: 1 });
+  trainer.events.onVideoChange({ trackNumber: 0, video: "badclip0002" });
+  trainer.events.onCaptionChange(caption(
+    "loose",
+    20,
+    "[[[it]]] [[[was]]] lost, but [[[there]]] were clues.",
+    "badclip0002",
+  ));
+
+  assert.equal(trainer.widgetCalls.next, 0);
+  assert.equal(trainer.widgetCalls.pause, 1);
+  assert.equal(trainer.document.getElementById("noResults").classList.contains("visible"), true);
+  assert.match(trainer.document.getElementById("noResultsText").textContent, /no exact examples/i);
+});
+
 test("Continue in video retains the first marked locator after playback advances", async t => {
   const trainer = await createTrainer();
   t.after(trainer.close);

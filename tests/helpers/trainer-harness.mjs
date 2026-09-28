@@ -69,6 +69,7 @@ export async function createTrainer({
     droppedMove: [],
     fetch: [],
     move: [],
+    next: 0,
     pause: 0,
     play: 0,
     replay: 0,
@@ -100,6 +101,11 @@ export async function createTrainer({
       }
       widgetCalls.move.push(delta);
       widgetCalls.commands.push({ command: "move", delta });
+    }
+
+    next() {
+      widgetCalls.next += 1;
+      widgetCalls.commands.push({ command: "next" });
     }
 
     pause() {

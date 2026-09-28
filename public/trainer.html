@@ -1661,6 +1661,11 @@
     let examplesRequest = 0;
     let youglishHasFetched = false;
     let youglishScriptLoading = false;
+    let exactSearchRejectedVideoId = "";
+    let exactSearchValidatedVideoId = "";
+    let exactSearchTotalResults = null;
+    let exactSearchTrackNumber = null;
+    let exactSearchValidResultCount = 0;
     let accountPhraseData = null;
     let accountVideoProgressSync = null;
     let fullVideoMode = initialViewerParams.get("fullVideo") === "1";
@@ -3570,7 +3575,7 @@
       if (!showFullVideoRestoreStatus()) {
         el.status.textContent = savedLabel
           ? `Finding “${displayQuery}” in ${savedLabel}…`
-          : `Finding random examples: “${displayQuery}” · accent: ${accentLabel()}…`;
+          : `Finding exact examples: “${displayQuery}” · accent: ${accentLabel()}…`;
       }
 
       try {
@@ -3625,6 +3630,11 @@
 
     function fetchPhrase(query, isOverride = false) {
       currentQueryOverride = fullVideoMode ? fullVideoOrigin.originalQuery : (isOverride ? query : null);
+      exactSearchRejectedVideoId = "";
+      exactSearchValidatedVideoId = "";
+      exactSearchTotalResults = null;
+      exactSearchTrackNumber = null;
+      exactSearchValidResultCount = 0;
       currentCaptionRaw = "";
       currentCaptionText = "";
       currentYouglishRestoreQuery = "";
@@ -3653,7 +3663,7 @@
         fetchTatoeba(query);
         return;
       }
-      fetchYouglish(`${query} :r`, query);
+      fetchYouglish(`"${query}"`, query);
     }
 
     function choosePhrase(id, scrollToPlayer = false) {
@@ -3688,7 +3698,9 @@
 
     function showNoResults(query) {
       const shorter = shorterSuggestion(query);
-      el.noResultsText.textContent = `${sourceLabel()} found no examples for “${query}”.`;
+      el.noResultsText.textContent = state.source === "youglish" && !usingSavedExamples()
+        ? `YouGlish found no exact examples for “${query}”.`
+        : `${sourceLabel()} found no examples for “${query}”.`;
       el.noResults.classList.add("visible");
 
       if (shorter && shorter !== query) {
@@ -3706,6 +3718,23 @@
         .replace(/\]\]\]/g, "")
         .replace(/\s+/g, " ")
         .trim();
+    }
+
+    function captionContainsExactPhrase(caption, query) {
+      const normalize = (text) => cleanCaptionText(text)
+        .toLocaleLowerCase("en")
+        .replaceAll("’", "'");
+      const expected = normalize(query);
+      const actual = normalize(caption);
+      if (!expected) return false;
+      let start = actual.indexOf(expected);
+      while (start >= 0) {
+        const before = actual[start - 1] || "";
+        const after = actual[start + expected.length] || "";
+        if (!/[\p{L}\p{N}']/u.test(before) && !/[\p{L}\p{N}']/u.test(after)) return true;
+        start = actual.indexOf(expected, start + 1);
+      }
+      return false;
     }
 
     function normalizeWordForTranslation(word) {
@@ -4444,6 +4473,36 @@
       const nextCaptionText = cleanCaptionText(nextCaptionRaw);
       if (eventVideoId && currentYouglishVideoId && eventVideoId !== currentYouglishVideoId) return;
       if (eventVideoId && !currentYouglishVideoId) activateCaptionVideo(eventVideoId);
+      const searchVideoId = eventVideoId || currentYouglishVideoId;
+      const searchedPhrase = currentQueryOverride || VIEWER_PHRASE;
+      if (!fullVideoMode && !usingSavedExamples() && /\s/.test(searchedPhrase) && searchVideoId) {
+        if (exactSearchRejectedVideoId === searchVideoId) return;
+        if (exactSearchValidatedVideoId !== searchVideoId) {
+          if (captionContainsExactPhrase(nextCaptionRaw, searchedPhrase)) {
+            exactSearchValidatedVideoId = searchVideoId;
+            exactSearchValidResultCount += 1;
+          } else if (nextCaptionRaw.includes("[[[")) {
+            exactSearchRejectedVideoId = searchVideoId;
+            const lastCandidate = exactSearchTotalResults !== null
+              && exactSearchTrackNumber !== null
+              && exactSearchTrackNumber + 1 >= exactSearchTotalResults;
+            if (lastCandidate) {
+              if (exactSearchValidResultCount === 0) showNoResults(searchedPhrase);
+              if (callWidget("pause")) {
+                el.status.textContent = exactSearchValidResultCount === 0
+                  ? "No exact examples found."
+                  : "No more exact examples.";
+              }
+            } else {
+              el.status.textContent = "Skipping a clip without the exact phrase…";
+              callWidget("next");
+            }
+            return;
+          } else {
+            return;
+          }
+        }
+      }
       const matchedRestoreQuery = youglishVideoRestore
         ? youglishVideoRestore.extractRestoreQuery(nextCaptionRaw)
         : "";
@@ -4600,6 +4659,9 @@
     function onFetchDone(event) {
       if (state.source !== "youglish") return;
       const query = currentQueryOverride || VIEWER_PHRASE;
+      exactSearchTotalResults = Number.isFinite(Number(event.totalResult))
+        ? Number(event.totalResult)
+        : null;
       if (Number(event.totalResult) === 0) {
         showNoResults(query);
         if (fullVideoMode) {
@@ -4622,7 +4684,7 @@
       const providerExamples = examplesForCurrentSource();
       el.status.textContent = usingSavedExamples()
         ? `Saved video ${savedExampleIndex + 1}/${providerExamples.length} · clips found: ${event.totalResult}`
-        : `Examples found: ${event.totalResult} · random order · accent: ${accentLabel()}`;
+        : `Phrase search results: ${event.totalResult} · accent: ${accentLabel()}`;
     }
 
     function onVideoChange(event) {
@@ -4630,6 +4692,13 @@
       const previousVideoId = currentYouglishVideoId;
       const nextVideoId = String(event && event.video || "").trim();
       if (!nextVideoId) return;
+      if (nextVideoId !== previousVideoId) {
+        exactSearchRejectedVideoId = "";
+        exactSearchValidatedVideoId = "";
+      }
+      exactSearchTrackNumber = event.trackNumber != null && Number.isInteger(Number(event.trackNumber))
+        ? Number(event.trackNumber)
+        : null;
       if (fullVideoMode && nextVideoId !== fullVideoOrigin.videoId) {
         showWidgetError("YouGlish could not restore the saved video.");
         return;

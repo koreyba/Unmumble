@@ -3723,7 +3723,7 @@
     function captionContainsExactPhrase(caption, query) {
       const normalize = (text) => cleanCaptionText(text)
         .toLocaleLowerCase("en")
-        .replace(/’/g, "'");
+        .replaceAll("’", "'");
       const expected = normalize(query);
       const actual = normalize(caption);
       if (!expected) return false;

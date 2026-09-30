@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { socialPreviewMetadata } from "@/lib/social-preview";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,19 +8,7 @@ export const metadata: Metadata = {
   title: "Unmumble",
   description: "Connect the sounds with the words. Listen, check, repeat, and hear real English clearly.",
   other: { "codex-preview": "development" },
-  openGraph: {
-    title: "Unmumble — You know the words. Learn to hear them.",
-    description: "Listen. Check. Repeat. Hear.",
-    siteName: "Unmumble",
-    url: "/",
-    images: ["/og.png"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Unmumble — You know the words. Learn to hear them.",
-    description: "Listen. Check. Repeat. Hear.",
-    images: ["/og.png"],
-  },
+  ...socialPreviewMetadata(),
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

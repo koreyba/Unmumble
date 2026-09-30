@@ -44,6 +44,7 @@ const PUBLIC_LONG_CACHE_PATHS = new Set([
   "/file.svg",
   "/globe.svg",
   "/og.png",
+  "/og-dark.png",
   "/window.svg",
 ]);
 

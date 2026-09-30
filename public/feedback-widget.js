@@ -4,12 +4,13 @@
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   const SUCCESS_VISIBLE_MS = 2_800;
   const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const FOCUSABLE_SELECTOR = 'button:not(:disabled), select:not(:disabled), textarea:not(:disabled), input:not(:disabled):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
   const root = document.createElement("div");
   root.dataset.feedbackWidget = "";
   root.innerHTML = `
-    <button aria-haspopup="dialog" aria-label="Feedback" class="feedback-trigger" data-feedback-open type="button">
-      <span aria-hidden="true">💬</span>
+    <button aria-haspopup="dialog" aria-label="Feedback" class="feedback-trigger ui-button ui-button--primary ui-button--pill" data-feedback-open type="button">
+      <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18"><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.4-4.3A7.5 7.5 0 1 1 20 11.5z"></path></svg>
       <span>Feedback</span>
     </button>
     <div class="feedback-backdrop" data-feedback-backdrop hidden>
@@ -19,12 +20,12 @@
             <p>Beta feedback</p>
             <h2 id="feedback-title">Help improve Unmumble</h2>
           </div>
-          <button aria-label="Close feedback" class="feedback-close" data-feedback-close type="button">×</button>
+          <button aria-label="Close feedback" class="feedback-close ui-button ui-button--ghost ui-button--icon" data-feedback-close type="button">×</button>
         </div>
         <form data-feedback-form>
           <label>
             <span>What is this about?</span>
-            <select name="category">
+            <select class="ui-select" name="category">
               <option value="bug">🐛 Something is broken</option>
               <option value="idea">💡 I have an idea</option>
               <option value="other">💬 Something else</option>
@@ -32,7 +33,7 @@
           </label>
           <label>
             <span>Tell us what happened or what you would like</span>
-            <textarea maxlength="2000" name="message" placeholder="A couple of sentences is enough." required rows="5"></textarea>
+            <textarea class="ui-textarea" maxlength="2000" name="message" placeholder="A couple of sentences is enough." required rows="5"></textarea>
           </label>
           <label class="feedback-image-field">
             <span>Screenshot <small>Optional · JPEG, PNG or WebP · max 5 MB</small></span>
@@ -42,7 +43,7 @@
             <canvas aria-label="Selected feedback screenshot" data-feedback-image height="112" width="144"></canvas>
             <div>
               <span data-feedback-image-name></span>
-              <button data-feedback-image-remove type="button">Remove</button>
+              <button class="ui-button ui-button--ghost ui-button--sm" data-feedback-image-remove type="button">Remove</button>
             </div>
           </div>
           <label aria-hidden="true" class="feedback-honeypot">
@@ -50,7 +51,7 @@
             <input autocomplete="off" name="website" tabindex="-1" type="text" />
           </label>
           <p aria-live="polite" class="feedback-status" data-feedback-status role="status"></p>
-          <button class="feedback-submit" type="submit">Send feedback</button>
+          <button class="feedback-submit ui-button ui-button--primary ui-button--lg ui-button--block" type="submit">Send feedback</button>
         </form>
         <div aria-live="polite" class="feedback-success" data-feedback-success hidden role="status" tabindex="-1">
           <div aria-hidden="true" class="feedback-success-icon">
@@ -68,6 +69,7 @@
 
   const trigger = root.querySelector("[data-feedback-open]");
   const backdrop = root.querySelector("[data-feedback-backdrop]");
+  const dialog = root.querySelector(".feedback-dialog");
   const closeButton = root.querySelector("[data-feedback-close]");
   const form = root.querySelector("[data-feedback-form]");
   const message = root.querySelector('textarea[name="message"]');
@@ -172,7 +174,23 @@
     if (event.target === backdrop) close();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !backdrop.hidden) close();
+    if (backdrop.hidden) return;
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...dialog.querySelectorAll(FOCUSABLE_SELECTOR)].filter((element) => element.offsetParent !== null || element === document.activeElement);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable.at(-1) ?? first;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();

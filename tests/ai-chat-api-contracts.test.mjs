@@ -166,3 +166,22 @@ test("one mutation boundary enforces exact origin and bounded JSON before parsin
     error: { code: "request_too_large", status: 413 },
   });
 });
+
+test("renaming accepts exactly one trimmed single-line title up to 100 characters", () => {
+  assert.deepEqual(api.readRenameChatPayload({ title: "  My\n  chat  " }), {
+    ok: true,
+    value: { title: "My chat" },
+  });
+  assert.deepEqual(api.readRenameChatPayload({ title: "x".repeat(100) }).ok, true);
+  assert.deepEqual(api.readRenameChatPayload({ title: "x".repeat(101) }), {
+    ok: false,
+    error: { code: "field_too_long", status: 400 },
+  });
+  for (const payload of [{}, { title: "" }, { title: "   " }, { title: 4 }]) {
+    assert.equal(api.readRenameChatPayload(payload).ok, false);
+  }
+  assert.deepEqual(api.readRenameChatPayload({ title: "ok", userId: "someone-else" }), {
+    ok: false,
+    error: { code: "invalid_request", status: 400 },
+  });
+});

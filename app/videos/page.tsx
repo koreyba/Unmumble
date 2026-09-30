@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { GuestSignInLink } from "@/app/components/default-account-widget";
 import { SignedInSiteAccount } from "@/app/components/signed-in-site-account";
 import { SiteNavigation } from "@/app/components/site-navigation";
+import { Button, ButtonLink, Card, EmptyState, ListSkeleton, Notice, PlayIcon } from "@/app/components/ui";
 import {
   accountSession,
   legacyYoutubeProgressStorageKeys,
-  signInHref,
   youtubeProgressStorageKey,
   type AccountSessionUser,
 } from "@/lib/client-session";
@@ -114,6 +115,7 @@ export default function VideosPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
+  const [undoRemoval, setUndoRemoval] = useState<{ video: SavedVideo; index: number; progress?: YouTubeProgressEntry } | null>(null);
   const [error, setError] = useState("");
 
   const loadGuest = useCallback(() => {
@@ -223,15 +225,47 @@ export default function VideosPage() {
     if (fullVideoUrl) window.location.assign(fullVideoUrl);
   }
 
+  function writeProgress(next: Record<string, YouTubeProgressEntry>) {
+    setProgress(next);
+    try {
+      writeMigratedStorage(
+        window.localStorage,
+        progressStorageKey,
+        progressLegacyStorageKeys,
+        JSON.stringify({ version: 1, videos: next }),
+      );
+    } catch { /* optional mirror */ }
+  }
+
+  // Removal is immediate and reversible: a short-lived notice offers Undo instead of a browser dialog.
+  function offerUndo(removal: { video: SavedVideo; index: number; progress?: YouTubeProgressEntry }) {
+    setUndoRemoval(removal);
+    setNotice("Video removed from Continue watching. Its phrase clips were not changed.");
+  }
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => {
+      setNotice("");
+      setUndoRemoval(null);
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
   async function removeVideo(video: SavedVideo) {
-    if (!window.confirm("Remove this video from Continue watching?")) return;
     setBusyId(video.id);
     setError("");
     setNotice("");
+    setUndoRemoval(null);
+    const removal = {
+      video,
+      index: Math.max(0, videos.findIndex((item) => item.id === video.id)),
+      progress: progress[video.videoId],
+    };
     if (mode === "guest") {
       persistGuest(removeGuestSavedVideo(guestLibrary, video.id));
       clearCurrentProgress(video.videoId);
-      setNotice("Video removed from Continue watching. Its phrase clips were not changed.");
+      offerUndo(removal);
       setBusyId("");
       return;
     }
@@ -242,7 +276,7 @@ export default function VideosPage() {
       if (!response.ok) throw new Error(data.error || "Could not remove the video.");
       setVideos((items) => items.filter((item) => item.id !== video.id));
       clearCurrentProgress(video.videoId);
-      setNotice("Video removed from Continue watching. Its phrase clips were not changed.");
+      offerUndo(removal);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not remove the video.");
     } finally {
@@ -250,75 +284,122 @@ export default function VideosPage() {
     }
   }
 
+  async function undoRemove() {
+    if (!undoRemoval) return;
+    const { video, index, progress: savedProgress } = undoRemoval;
+    setUndoRemoval(null);
+    setNotice("");
+    setError("");
+    if (savedProgress) writeProgress({ ...progress, [video.videoId]: savedProgress });
+
+    if (mode === "guest") {
+      const record: GuestSavedVideo = { ...video };
+      delete (record as SavedVideo).progress;
+      const restored = [...guestLibrary.savedVideos];
+      restored.splice(Math.min(index, restored.length), 0, record);
+      persistGuest({ ...guestLibrary, savedVideos: restored });
+      setNotice("Video restored.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...video, progress: savedProgress ?? video.progress }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Could not restore the video.");
+      if (viewer) await loadAccount(viewer);
+      setNotice("Video restored.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not restore the video.");
+    }
+  }
+
+  function renderSavedVideos() {
+    if (loading) return <ListSkeleton label="Loading videos" rows={2} />;
+    if (videos.length === 0) {
+      return (
+        <EmptyState
+          action={<ButtonLink href="/practice" variant="primary">Open Practice</ButtonLink>}
+          description="Choose Watch full video on a YouGlish result to add the first one."
+          title="No videos watched yet"
+        />
+      );
+    }
+    return (
+<div className="video-grid">
+      {videos.map((video, index) => {
+        const savedProgress = progress[video.videoId]?.seconds || 0;
+        return (
+          <Card as="article" className="video-card ui-rise" interactive key={video.id} style={{ "--ui-index": Math.min(index, 6) } as React.CSSProperties}>
+            <button
+              aria-label={`Continue ${video.originQuery || "YouTube video"}`}
+              className="video-thumbnail"
+              onClick={() => selectVideo(video)}
+              style={{ backgroundImage: `url(${youtubeThumbnailUrl(video.videoId)})` }}
+              type="button"
+            >
+              <span aria-hidden="true" className="video-thumbnail__play"><PlayIcon size={22} /></span>
+            </button>
+            <div className="video-card-body">
+              <h3>{video.originQuery || "YouTube video"}</h3>
+              {video.originCaption && <p>{video.originCaption}</p>}
+              <div className="video-card-meta">
+                <span>{savedProgress > 0 ? `Resume at ${formatProgress(savedProgress)}` : "Not started"}</span>
+                <span>Last opened {new Date(video.updatedAt).toLocaleDateString()}</span>
+              </div>
+              <div className="video-card-actions">
+                <Button onClick={() => selectVideo(video)} variant="primary">Continue</Button>
+                <Button disabled={busyId === video.id} onClick={() => void removeVideo(video)} quietDanger>Remove</Button>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+    );
+  }
+
   return (
     <>
       <SiteNavigation
         active="videos"
         account={mode === "guest" || !viewer ? (
-          <a className="site-account-link" href={signInHref("/videos")}>Sign in with Google</a>
+          <GuestSignInLink returnTo="/videos" />
         ) : (
           <SignedInSiteAccount user={viewer} />
         )}
       />
-      <main className="videos-shell">
-      <header className="videos-header">
-        <div>
+      <main className="page-shell videos-shell">
+        <header className="page-header">
           <p className="eyebrow">Long-form listening</p>
           <h1>Videos</h1>
           <p>Continue a YouGlish video with the trainer&apos;s captions and learning controls. Signed-in resume syncs with your account.</p>
+        </header>
+
+        <div className="page-notices">
+          {mode === "guest" && <Notice>Guest mode: viewing history and resume position stay only in this browser.</Notice>}
+          {error && <Notice tone="danger">{error}</Notice>}
+          {notice && (
+            <Notice
+              action={undoRemoval ? <Button onClick={() => void undoRemove()} size="sm" variant="ghost">Undo</Button> : undefined}
+              tone="success"
+            >
+              {notice}
+            </Notice>
+          )}
         </div>
-      </header>
 
-      {mode === "guest" && <div className="notice" role="status">Guest mode: viewing history and resume position stay only in this browser.</div>}
-      {error && <div className="notice error" role="alert">{error}</div>}
-      {notice && <div className="notice success" role="status">{notice}</div>}
-
-      <section className="saved-videos-section" aria-labelledby="continue-watching-heading">
-        <div className="section-heading">
-          <div>
+        <section aria-labelledby="continue-watching-heading" className="saved-videos-section">
+          <div className="section-heading">
             <h2 id="continue-watching-heading">Continue watching</h2>
             <p>{videos.length} watched {videos.length === 1 ? "video" : "videos"}</p>
           </div>
-        </div>
 
-        {loading ? <div className="notice">Loading videos…</div> : videos.length === 0 ? (
-          <div className="empty-state">
-            <strong>No videos watched yet</strong>
-            <span>Choose Watch full video on a YouGlish result to add the first one.</span>
-          </div>
-        ) : (
-          <div className="video-grid">
-            {videos.map((video) => {
-              const savedProgress = progress[video.videoId]?.seconds || 0;
-              return (
-                <article className="video-card" key={video.id}>
-                  <button
-                    aria-label={`Continue ${video.originQuery || "YouTube video"}`}
-                    className="video-thumbnail"
-                    onClick={() => selectVideo(video)}
-                    style={{ backgroundImage: `url(${youtubeThumbnailUrl(video.videoId)})` }}
-                    type="button"
-                  >
-                    <span aria-hidden="true">▶</span>
-                  </button>
-                  <div className="video-card-body">
-                    <h3>{video.originQuery || "YouTube video"}</h3>
-                    {video.originCaption && <p>{video.originCaption}</p>}
-                    <div className="video-card-meta">
-                      <span>{savedProgress > 0 ? `Resume at ${formatProgress(savedProgress)}` : "Not started"}</span>
-                      <span>Last opened {new Date(video.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="video-card-actions">
-                      <button onClick={() => selectVideo(video)} type="button">Continue</button>
-                      <button className="secondary" disabled={busyId === video.id} onClick={() => void removeVideo(video)} type="button">Remove</button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+          {renderSavedVideos()}
+        </section>
       </main>
     </>
   );

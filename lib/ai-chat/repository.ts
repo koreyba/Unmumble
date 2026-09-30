@@ -1,5 +1,6 @@
 import {
   AI_CHAT_LIMITS,
+  AI_CHAT_TITLE_MAX_CHARACTERS,
   isMeaningMode,
   type AiChatMeaningMode,
   type AiChatTargetInput,
@@ -15,6 +16,11 @@ import {
   type VocabularyPracticeTargetDraft,
 } from "../vocabulary/practice-reader.ts";
 import {
+  AI_CHAT_PREVIEW_CHARACTERS,
+  AI_CHAT_PREVIEW_SOURCE_CHARACTERS,
+  toChatPreview,
+} from "./preview.ts";
+import {
   parseAiChatTerminalTelemetry,
   serializeAiChatTerminalTelemetry,
   type AiChatTerminalTelemetry,
@@ -27,6 +33,7 @@ export const AI_CHAT_PENDING_LEASE_MS = 5 * 60_000;
 export const AI_CHAT_ACCOUNT_LIMIT = 100;
 export const AI_CHAT_LIST_LIMIT = 100;
 export const AI_CHAT_MESSAGE_LIST_LIMIT = 200;
+export { AI_CHAT_PREVIEW_CHARACTERS, toChatPreview };
 
 export type AiChatRepositoryErrorCode =
   | "not_found"
@@ -72,6 +79,7 @@ export type AiChatSummary = {
   explanationLanguage: string;
   targetCount: number;
   messageCount: number;
+  preview: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -122,6 +130,7 @@ type ChatRow = {
   explanation_language: string;
   target_count: number;
   message_count: number;
+  preview_source: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -251,6 +260,7 @@ function mapChat(row: ChatRow): AiChatSummary {
     explanationLanguage: row.explanation_language,
     targetCount: Number(row.target_count),
     messageCount: Number(row.message_count),
+    preview: toChatPreview(row.preview_source),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -316,6 +326,13 @@ export function createAiChatRepository(
         chats.explanation_language,
         (SELECT COUNT(*) FROM ai_chat_practice_items AS items WHERE items.chat_id = chats.id) AS target_count,
         (SELECT COUNT(*) FROM ai_chat_messages AS messages WHERE messages.chat_id = chats.id) AS message_count,
+        (
+          SELECT substr(previews.content, 1, ${AI_CHAT_PREVIEW_SOURCE_CHARACTERS})
+          FROM ai_chat_messages AS previews
+          WHERE previews.chat_id = chats.id AND previews.content <> ''
+          ORDER BY previews.sequence DESC
+          LIMIT 1
+        ) AS preview_source,
         chats.created_at,
         chats.updated_at
       FROM ai_chats AS chats
@@ -372,7 +389,8 @@ export function createAiChatRepository(
       repositoryError("target_limit", "Too many practice targets.");
     }
     const resolved: TargetDraft[] = [];
-    for (const target of targets) resolved.push(await resolveTarget(userId, target));
+    // Resolved one by one on purpose: the first invalid target decides the error, deterministically.
+    for (const target of targets) resolved.push(await resolveTarget(userId, target)); // NOSONAR
     return resolved;
   }
 
@@ -675,6 +693,13 @@ export function createAiChatRepository(
         chats.explanation_language,
         (SELECT COUNT(*) FROM ai_chat_practice_items AS items WHERE items.chat_id = chats.id) AS target_count,
         (SELECT COUNT(*) FROM ai_chat_messages AS messages WHERE messages.chat_id = chats.id) AS message_count,
+        (
+          SELECT substr(previews.content, 1, ${AI_CHAT_PREVIEW_SOURCE_CHARACTERS})
+          FROM ai_chat_messages AS previews
+          WHERE previews.chat_id = chats.id AND previews.content <> ''
+          ORDER BY previews.sequence DESC
+          LIMIT 1
+        ) AS preview_source,
         chats.created_at,
         chats.updated_at
       FROM ai_chats AS chats
@@ -683,6 +708,39 @@ export function createAiChatRepository(
       LIMIT ?
     `).bind(userId, AI_CHAT_LIST_LIMIT).all<ChatRow>();
     return result.results.map(mapChat);
+  }
+
+  async function renameChat(userId: string, chatId: string, title: string) {
+    const cleaned = truncateCharacters(cleanSingleLine(title), AI_CHAT_TITLE_MAX_CHARACTERS);
+    // A rename is not activity: updated_at keeps ordering the list by real conversation.
+    const result = await db.prepare(`
+      UPDATE ai_chats SET title = ? WHERE id = ? AND user_id = ?
+    `).bind(cleaned, chatId, userId).run();
+    if (Number(result.meta.changes || 0) === 0) repositoryError("not_found", "Chat not found.");
+    const summary = await getChatSummary(userId, chatId);
+    if (!summary) repositoryError("not_found", "Chat not found.");
+    return summary;
+  }
+
+  /**
+   * Deletes one owned chat. Messages, targets, attempts, tool traces and write
+   * proposals go with it through their ON DELETE CASCADE keys; vocabulary the
+   * person already confirmed stays untouched. Refused while a reply is being
+   * generated so an in-flight turn is never orphaned.
+   */
+  async function deleteChat(userId: string, chatId: string) {
+    await requireOwnedChat(userId, chatId);
+    const active = await db.prepare(`
+      SELECT 1 AS active
+      FROM ai_chat_assistant_attempts
+      WHERE chat_id = ? AND user_id = ? AND status = 'pending' AND lease_expires_at > ?
+      LIMIT 1
+    `).bind(chatId, userId, now()).first<{ active: number }>();
+    if (active) repositoryError("turn_in_progress", "A reply is still being generated.");
+    const result = await db.prepare(`
+      DELETE FROM ai_chats WHERE id = ? AND user_id = ?
+    `).bind(chatId, userId).run();
+    if (Number(result.meta.changes || 0) === 0) repositoryError("not_found", "Chat not found.");
   }
 
   async function createChat(
@@ -1576,6 +1634,7 @@ export function createAiChatRepository(
     beginTurn,
     cancelTurn,
     createChat,
+    deleteChat,
     failTurn,
     finishTurn,
     getCanonicalHistory,
@@ -1583,6 +1642,7 @@ export function createAiChatRepository(
     getChatSummary,
     getCurrentPracticeItems,
     listChats,
+    renameChat,
     replacePracticeItems,
   };
 }

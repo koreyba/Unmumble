@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
+import { BookmarkPlusIcon } from "@/app/components/ai-chat-icons";
+import { Button, Notice } from "@/app/components/ui";
 
 export type AiWriteProposalOperation =
   | "add_vocabulary_entries"
@@ -45,8 +47,6 @@ export type AiWriteProposalProps = Readonly<{
   onConfirm?: (proposalId: string) => void;
   onCancel?: (proposalId: string) => void;
 }>;
-
-const actionStyle = { minHeight: 44 } as const;
 
 function entryCountLabel(count: number) {
   return `${count} ${count === 1 ? "entry" : "entries"}`;
@@ -181,6 +181,91 @@ function proposalStatusMessage(
   return `Review ${entries} before adding ${count === 1 ? "it" : "them"}.`;
 }
 
+type ChangeSetGroup = Readonly<{
+  actionType: AiWriteProposalActionType;
+  label: string;
+  items: readonly AiWriteProposalItem[];
+}>;
+
+function groupChangeSetItems(items: readonly AiWriteProposalItem[]): ChangeSetGroup[] {
+  return changeSetGroups
+    .map((group) => ({
+      ...group,
+      items: items.filter((item) => item.actionType === group.actionType),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** A collapsed change set still previews every action group before it lists more items. */
+function visibleChangeSetItems(
+  groups: readonly ChangeSetGroup[],
+  previewCount: number,
+  collapsed: boolean,
+) {
+  const spareSlots = Math.max(0, previewCount - groups.length);
+  return groups.map((group, groupIndex) => {
+    if (!collapsed) return { ...group, visibleItems: group.items };
+    const previousGroupCapacity = groups
+      .slice(0, groupIndex)
+      .reduce((total, previousGroup) => total + previousGroup.items.length - 1, 0);
+    const additionalItemCount = Math.min(
+      group.items.length - 1,
+      Math.max(0, spareSlots - previousGroupCapacity),
+    );
+    return { ...group, visibleItems: group.items.slice(0, additionalItemCount + 1) };
+  });
+}
+
+function statusPresentation(status: AiWriteProposalStatus) {
+  if (status === "failed") return { role: "alert", tone: "danger" } as const;
+  if (status === "confirmed") return { role: "status", tone: "success" } as const;
+  return { role: "status", tone: null } as const;
+}
+
+function confirmLabel(busy: boolean, isChangeSet: boolean) {
+  if (busy) return "Applying…";
+  return isChangeSet ? "Confirm changes" : "Confirm";
+}
+
+function ProposalStatus({ message, status }: Readonly<{
+  message: string;
+  status: AiWriteProposalStatus;
+}>) {
+  const { role, tone } = statusPresentation(status);
+  const live = role === "alert" ? "assertive" : "polite";
+  if (tone) {
+    return (
+      <Notice aria-live={live} className="ai-chat-write-proposal-status" role={role} tone={tone}>
+        {message}
+      </Notice>
+    );
+  }
+  return <p aria-live={live} className="ai-chat-write-proposal-status" role={role}>{message}</p>;
+}
+
+function ProposalActions({ busy, isChangeSet, proposalId, onCancel, onConfirm }: Readonly<{
+  busy: boolean;
+  isChangeSet: boolean;
+  proposalId: string;
+  onCancel?: (proposalId: string) => void;
+  onConfirm?: (proposalId: string) => void;
+}>) {
+  return (
+    <div className="ai-chat-write-proposal-actions">
+      <Button
+        disabled={busy}
+        onClick={() => onCancel?.(proposalId)}
+      >Cancel</Button>
+      <Button
+        disabled={busy}
+        loading={busy}
+        onClick={() => onConfirm?.(proposalId)}
+        variant="primary"
+      >{confirmLabel(busy, isChangeSet)}</Button>
+    </div>
+  );
+}
+
 export function AiChatWriteProposal({
   proposalId,
   collapsedItemCount = 3,
@@ -199,41 +284,18 @@ export function AiChatWriteProposal({
   const isChangeSet = operation === "vocabulary_change_set";
   const removal = isRemovalProposal(operation, items);
   const previewCount = Math.max(1, Math.floor(collapsedItemCount));
-  const groupedChangeSetItems = isChangeSet
-    ? changeSetGroups.map((group) => ({
-        ...group,
-        items: items.filter((item) => item.actionType === group.actionType),
-      })).filter((group) => group.items.length > 0)
-    : [];
-  const changeSetPreviewCount = Math.max(previewCount, groupedChangeSetItems.length);
-  const expandable = count > (isChangeSet ? changeSetPreviewCount : previewCount);
-  const visibleItems = !isChangeSet && expandable && !expanded
-    ? items.slice(0, previewCount)
-    : items;
-  const additionalChangeSetPreviewSlots = Math.max(
-    0,
-    previewCount - groupedChangeSetItems.length,
-  );
-  const visibleChangeSetGroups = groupedChangeSetItems.map((group, groupIndex) => {
-    if (!expandable || expanded) return { ...group, visibleItems: group.items };
-    const previousGroupCapacity = groupedChangeSetItems
-      .slice(0, groupIndex)
-      .reduce((total, previousGroup) => total + previousGroup.items.length - 1, 0);
-    const additionalItemCount = Math.min(
-      group.items.length - 1,
-      Math.max(0, additionalChangeSetPreviewSlots - previousGroupCapacity),
-    );
-    return {
-      ...group,
-      visibleItems: group.items.slice(0, additionalItemCount + 1),
-    };
-  });
+  const groups = isChangeSet ? groupChangeSetItems(items) : [];
+  const previewLimit = isChangeSet ? Math.max(previewCount, groups.length) : previewCount;
+  const expandable = count > previewLimit;
+  const collapsed = expandable && !expanded;
+  const visibleItems = !isChangeSet && collapsed ? items.slice(0, previewCount) : items;
+  const visibleGroups = visibleChangeSetItems(groups, previewCount, collapsed);
   const visibleItemCount = isChangeSet
-    ? visibleChangeSetGroups.reduce((total, group) => total + group.visibleItems.length, 0)
+    ? visibleGroups.reduce((total, group) => total + group.visibleItems.length, 0)
     : visibleItems.length;
   const busy = status === "busy";
   const showActions = status === "pending" || busy;
-  const statusRole = status === "failed" ? "alert" : "status";
+  const statusMessage = proposalStatusMessage(operation, status, count, errorMessage, result, removal);
 
   return (
     <section
@@ -244,6 +306,7 @@ export function AiChatWriteProposal({
       data-status={status}
     >
       <header className="ai-chat-write-proposal-heading">
+        <span aria-hidden="true" className="ai-chat-write-proposal-icon"><BookmarkPlusIcon /></span>
         <div>
           <h3 id={titleId}>{proposalTitle(operation, removal)}</h3>
           <p className="ai-chat-write-proposal-count">
@@ -254,7 +317,7 @@ export function AiChatWriteProposal({
 
       {isChangeSet ? (
         <div className="ai-chat-write-proposal-groups" id={listId}>
-          {visibleChangeSetGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <section
               className="ai-chat-write-proposal-group"
               data-action-group={group.actionType}
@@ -281,44 +344,36 @@ export function AiChatWriteProposal({
       )}
 
       {expandable && (
-        <button
+        <Button
           aria-controls={listId}
           aria-expanded={expanded}
           className="ai-chat-write-proposal-toggle"
           onClick={() => setExpanded((value) => !value)}
-          style={actionStyle}
-          type="button"
-        >{expanded ? "Show fewer" : `Show ${count - visibleItemCount} more`}</button>
+          variant="ghost"
+        >{expanded ? "Show fewer" : `Show ${count - visibleItemCount} more`}</Button>
       )}
 
-      <p
-        aria-live={statusRole === "alert" ? "assertive" : "polite"}
-        role={statusRole}
-      >
-        {proposalStatusMessage(operation, status, count, errorMessage, result, removal)}
-      </p>
+      <ProposalStatus message={statusMessage} status={status} />
 
       {showActions && errorMessage && (
-        <p aria-live="assertive" className="ai-chat-write-proposal-error" role="alert">
+        <Notice
+          aria-live="assertive"
+          className="ai-chat-write-proposal-error"
+          role="alert"
+          tone="danger"
+        >
           {errorMessage}
-        </p>
+        </Notice>
       )}
 
       {showActions && (
-        <div className="ai-chat-write-proposal-actions">
-          <button
-            disabled={busy}
-            onClick={() => onCancel?.(proposalId)}
-            style={actionStyle}
-            type="button"
-          >Cancel</button>
-          <button
-            disabled={busy}
-            onClick={() => onConfirm?.(proposalId)}
-            style={actionStyle}
-            type="button"
-          >{busy ? "Applying…" : isChangeSet ? "Confirm changes" : "Confirm"}</button>
-        </div>
+        <ProposalActions
+          busy={busy}
+          isChangeSet={isChangeSet}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+          proposalId={proposalId}
+        />
       )}
     </section>
   );

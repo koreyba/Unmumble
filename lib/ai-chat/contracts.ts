@@ -20,6 +20,9 @@ export const AI_CHAT_LIMITS = Object.freeze({
   outputTokens: 2_400,
 });
 
+/** Longest chat title a person may set when renaming (derived titles are shorter). */
+export const AI_CHAT_TITLE_MAX_CHARACTERS = 100;
+
 export const AI_CHAT_MEANING_MODES = ["all_saved", "selected", "explore"] as const;
 
 export type AiChatMeaningMode = (typeof AI_CHAT_MEANING_MODES)[number];

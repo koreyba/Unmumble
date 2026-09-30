@@ -1,5 +1,6 @@
 import {
   AI_CHAT_LIMITS,
+  AI_CHAT_TITLE_MAX_CHARACTERS,
   hasSameOrigin,
   readAiChatTarget,
   readBoundedJsonObject,
@@ -52,6 +53,16 @@ export function readReplaceTargetsPayload(
   }
   const targets = readTargets(payload.targets);
   return targets.ok ? { ok: true, value: { targets: targets.value } } : targets;
+}
+
+export function readRenameChatPayload(
+  payload: ObjectValue,
+): AiChatValidationResult<{ title: string }> {
+  if (!hasExactKeys(payload, ["title"])) return invalidRequest();
+  const title = readBoundedText(payload.title, AI_CHAT_TITLE_MAX_CHARACTERS, {
+    singleLine: true,
+  });
+  return title.ok ? { ok: true, value: { title: title.value } } : title;
 }
 
 export function readGenerateMessagePayload(

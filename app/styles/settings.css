@@ -1,0 +1,94 @@
+/* Settings: account-level cards and the native language picker. */
+
+.settings-card-stack { display: grid; gap: 18px; }
+.settings-skeleton { height: 220px; border-radius: var(--radius-xl); }
+
+.settings-card h2 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+.settings-card__label { margin: 0 0 8px; color: var(--color-label); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.settings-card__text { margin: 6px 0 0; color: var(--color-text-secondary); line-height: 1.5; }
+.settings-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.settings-card__source { margin: 24px 0 18px; color: var(--color-text-secondary); }
+.settings-card__form { display: grid; gap: 14px; }
+.settings-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-card > .settings-card__actions { margin-top: 22px; }
+.settings-card__note { margin: 22px 0 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.55; }
+
+/* Native language combobox (searchable listbox). */
+.native-language-field { display: grid; gap: 10px; max-width: 440px; margin-top: 22px; }
+.native-language-combobox { position: relative; }
+.native-language-combobox label { display: block; margin-bottom: 8px; color: var(--color-text-secondary); font-size: 13px; font-weight: 650; }
+.native-language-control { position: relative; }
+
+.native-language-control input {
+  width: 100%;
+  height: 52px;
+  padding: 0 44px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: var(--color-control-background);
+  color: var(--color-text-primary);
+  font: 600 15px / 1 var(--app-ui-font);
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+
+.native-language-control input:focus-visible { border-color: var(--color-interactive); box-shadow: 0 0 0 4px var(--color-interactive-soft-hover); }
+.native-language-control input:disabled { opacity: .6; cursor: not-allowed; }
+.native-language-control input::placeholder { color: var(--color-text-tertiary); font-weight: 500; }
+
+.native-language-control-icon,
+.native-language-chevron {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.native-language-control-icon { left: 15px; }
+.native-language-chevron { right: 15px; }
+
+.native-language-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  max-height: 280px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-raised);
+  animation: ui-pop var(--duration-base) var(--ease-out) backwards;
+}
+
+.native-language-options button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.native-language-options button:hover,
+.native-language-options button.active { background: var(--color-interactive-soft-hover); }
+.native-language-options button[aria-selected="true"] { color: var(--color-interactive-link); font-weight: 750; }
+.native-language-options small { color: var(--color-text-secondary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+
+.native-language-empty,
+.native-language-hint,
+.native-language-status { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.native-language-empty { padding: 10px 12px; }
+.native-language-error { margin: 0; color: var(--color-danger); font-size: 13px; }

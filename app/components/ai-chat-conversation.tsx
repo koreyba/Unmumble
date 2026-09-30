@@ -1,16 +1,19 @@
 "use client";
 
 import {
+  type ReactNode,
   type UIEvent as ReactUIEvent,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+import { ArrowDownIcon, MenuIcon, RetryIcon, SparkleIcon } from "@/app/components/ai-chat-icons";
 import { ChatSelectionActions } from "@/app/components/ai-chat-selection-actions";
 import { AiChatComposer } from "@/app/components/ai-chat-composer";
 import { AiChatWriteProposal } from "@/app/components/ai-chat-write-proposal";
 import { InteractiveEnglishText } from "@/app/components/interactive-english-text";
+import { Badge, Button, EmptyState, Notice } from "@/app/components/ui";
 import {
   useAiChatTurnController,
   type AiChatRefreshOptions,
@@ -22,6 +25,22 @@ import {
 } from "@/lib/ai-chat/client";
 import { aiChatApiError, requestAiChatJson } from "@/lib/ai-chat/client-http";
 import { isSameChatSelection, type ChatTextSelection } from "@/lib/ai-chat/selection";
+
+function generationStatusLabel(cancelling: boolean, status: string, waiting: boolean) {
+  if (cancelling) return "Stopping…";
+  if (status === "submitted") return "Thinking…";
+  if (status === "streaming") return "Responding…";
+  return waiting ? "Waiting…" : "Ready";
+}
+
+function ThinkingIndicator() {
+  return (
+    <span className="ai-chat-thinking">
+      <span aria-hidden="true" className="ai-chat-typing"><i /><i /><i /></span>
+      <span className="ai-chat-visually-hidden">Preparing a response…</span>
+    </span>
+  );
+}
 
 function generationFailureMessage(metadata: AiChatUiMetadata | undefined) {
   return aiChatApiError(
@@ -39,7 +58,7 @@ export function ChatConversation({
   onOpenSidebar,
   refresh,
   sidebarOpen,
-}: {
+}: Readonly<{
   chat: AiChatClientDetail;
   draft: string;
   generationConfigured: boolean;
@@ -47,7 +66,7 @@ export function ChatConversation({
   onOpenSidebar: () => void;
   refresh: (signal?: AbortSignal, options?: AiChatRefreshOptions) => Promise<AiChatClientDetail | null>;
   sidebarOpen: boolean;
-}) {
+}>) {
   const [selection, setSelection] = useState<ChatTextSelection | null>(null);
   const [following, setFollowing] = useState(true);
   const [proposalDecision, setProposalDecision] = useState<{
@@ -59,8 +78,6 @@ export function ChatConversation({
   const followLatest = useCallback(() => setFollowing(true), []);
   const {
     cancelling,
-    error,
-    hasRetryableAssistantFailure,
     messages,
     recoverableOutbound,
     retry,
@@ -82,8 +99,11 @@ export function ChatConversation({
     refresh,
   });
 
+  // Messages that were already in the chat when it opened do not animate in.
+  const [openingMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
+
   useEffect(() => {
-    if (following) messageEnd.current?.scrollIntoView({ block: "end" });
+    if (following) messageEnd.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [following, messages, status]);
 
   useEffect(() => {
@@ -138,53 +158,53 @@ export function ChatConversation({
   return (
     <section className="ai-chat-conversation" aria-label={`Conversation: ${chat.title}`}>
       <header className="ai-chat-conversation-header">
-        <button
+        <Button
           aria-controls="ai-chat-sidebar"
           aria-expanded={sidebarOpen}
           className="ai-chat-mobile-chats"
+          icon={<MenuIcon />}
           onClick={onOpenSidebar}
-          type="button"
         >
-          <span aria-hidden="true">☰</span>
           Chats
-        </button>
-        <div>
+        </Button>
+        <div className="ai-chat-conversation-title">
           <span className="ai-chat-conversation-label">Vocabulary practice</span>
           <h2>{chat.title}</h2>
         </div>
-        <span className={`ai-chat-generation-status ${turnBusy ? "busy" : ""}`} aria-live="polite">
-          {cancelling
-            ? "Stopping"
-            : status === "submitted"
-            ? "Thinking"
-            : status === "streaming"
-              ? "Responding"
-              : waitingForResponse ? "Waiting" : "Ready"}
-        </span>
+        <Badge
+          aria-live="polite"
+          className={`ai-chat-generation-status ${turnBusy ? "busy" : ""}`}
+          role="status"
+          tone={turnBusy ? "warning" : "success"}
+        >
+          {generationStatusLabel(cancelling, status, waitingForResponse)}
+        </Badge>
       </header>
 
-      <div
-        aria-live="polite"
-        aria-relevant="additions text"
-        className="ai-chat-messages"
-        onScroll={handleMessageScroll}
-        role="log"
-      >
-        {messages.length === 0 ? (
-          <div className="ai-chat-empty">
-            <strong>You lead the practice</strong>
-            <span>Ask for examples, another context, an explanation, or a translation exercise.</span>
-          </div>
-        ) : messages.map((message) => {
-          const text = aiChatUiMessageText(message);
-          const failed = message.metadata?.status === "failed";
-          const writeProposals = (chat.writeProposals || []).filter(
-            (proposal) => proposal.assistantMessageId === message.id,
-          );
-          return (
-            <article className={`ai-chat-message ${message.role}`} key={message.id}>
-              <span className="ai-chat-message-role">{message.role === "user" ? "You" : "Unmumble AI"}</span>
-              {text ? (
+      <div className="ai-chat-log">
+        <div
+          aria-live="polite"
+          aria-relevant="additions text"
+          className="ai-chat-messages"
+          onScroll={handleMessageScroll}
+          role="log"
+        >
+          {messages.length === 0 ? (
+            <EmptyState
+              className="ai-chat-empty"
+              description="Ask for examples, another context, an explanation, or a translation exercise."
+              icon={<SparkleIcon />}
+              title="You lead the practice"
+            />
+          ) : messages.map((message) => {
+            const text = aiChatUiMessageText(message);
+            const failed = message.metadata?.status === "failed";
+            const writeProposals = (chat.writeProposals || []).filter(
+              (proposal) => proposal.assistantMessageId === message.id,
+            );
+            let body: ReactNode = null;
+            if (text) {
+              body = (
                 <div className="ai-chat-message-text" data-chat-message-id={message.id}>
                   <InteractiveEnglishText
                     markdown={message.role === "assistant"}
@@ -204,61 +224,85 @@ export function ChatConversation({
                     text={text}
                   />
                 </div>
-              ) : !failed ? <span className="ai-chat-thinking">Preparing a response…</span> : null}
-              {failed && (
-                <div className="ai-chat-message-failure" role="alert">
-                  <span>{generationFailureMessage(message.metadata)}</span>
-                  <button
-                    disabled={turnBusy || !generationConfigured}
-                    onClick={() => void retry(message.metadata!.clientMessageId)}
-                    type="button"
-                  >Retry</button>
-                </div>
-              )}
-              {writeProposals.map((proposal) => {
-                const deciding = proposalDecision?.proposalId === proposal.id;
-                const errorMessage = proposalErrors[proposal.id]
-                  || (proposal.errorCode === "mutation_conflict"
-                    ? "Your vocabulary changed after this proposal was prepared. Nothing was overwritten."
-                    : undefined);
-                return (
-                  <AiChatWriteProposal
-                    errorMessage={errorMessage}
-                    items={proposal.items}
-                    key={proposal.id}
-                    onCancel={(proposalId) => void decideWriteProposal(proposalId, {
-                      decision: "cancel",
-                    })}
-                    onConfirm={(proposalId) => void decideWriteProposal(proposalId, {
-                      decision: "confirm",
-                    })}
-                    operation={proposal.operation}
-                    proposalId={proposal.id}
-                    result={proposal.result}
-                    status={deciding ? "busy" : proposal.status}
-                  />
-                );
-              })}
+              );
+            } else if (!failed) {
+              body = <ThinkingIndicator />;
+            }
+            return (
+              <article
+                className={`ai-chat-message ${message.role}${openingMessageIds.has(message.id) ? "" : " ai-chat-message-enter"}`}
+                key={message.id}
+              >
+                <span className="ai-chat-message-role">{message.role === "user" ? "You" : "Unmumble AI"}</span>
+                {body}
+                {failed && (
+                  <Notice
+                    action={(
+                      <Button
+                        disabled={turnBusy || !generationConfigured}
+                        icon={<RetryIcon />}
+                        onClick={() => void retry(message.metadata!.clientMessageId)}
+                      >Retry</Button>
+                    )}
+                    className="ai-chat-message-failure"
+                    tone="danger"
+                  >
+                    {generationFailureMessage(message.metadata)}
+                  </Notice>
+                )}
+                {writeProposals.map((proposal) => {
+                  const deciding = proposalDecision?.proposalId === proposal.id;
+                  const errorMessage = proposalErrors[proposal.id]
+                    || (proposal.errorCode === "mutation_conflict"
+                      ? "Your vocabulary changed after this proposal was prepared. Nothing was overwritten."
+                      : undefined);
+                  return (
+                    <AiChatWriteProposal
+                      errorMessage={errorMessage}
+                      items={proposal.items}
+                      key={proposal.id}
+                      onCancel={(proposalId) => void decideWriteProposal(proposalId, {
+                        decision: "cancel",
+                      })}
+                      onConfirm={(proposalId) => void decideWriteProposal(proposalId, {
+                        decision: "confirm",
+                      })}
+                      operation={proposal.operation}
+                      proposalId={proposal.id}
+                      result={proposal.result}
+                      status={deciding ? "busy" : proposal.status}
+                    />
+                  );
+                })}
+              </article>
+            );
+          })}
+          {status === "submitted" && messages[messages.length - 1]?.role === "user" && (
+            <article className="ai-chat-message assistant ai-chat-message-enter">
+              <span className="ai-chat-message-role">Unmumble AI</span>
+              <ThinkingIndicator />
             </article>
-          );
-        })}
-        <div aria-hidden="true" className="ai-chat-message-end" ref={messageEnd} />
-      </div>
+          )}
+          <div aria-hidden="true" className="ai-chat-message-end" ref={messageEnd} />
+        </div>
 
-      {!following && (
-        <button
-          className="ai-chat-jump-latest"
-          onClick={() => {
-            setFollowing(true);
-            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-            messageEnd.current?.scrollIntoView({
-              behavior: reduceMotion ? "auto" : "smooth",
-              block: "end",
-            });
-          }}
-          type="button"
-        >↓ Jump to latest</button>
-      )}
+        {!following && (
+          <Button
+            className="ai-chat-jump-latest"
+            icon={<ArrowDownIcon />}
+            onClick={() => {
+              setFollowing(true);
+              const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              messageEnd.current?.scrollIntoView({
+                behavior: reduceMotion ? "auto" : "smooth",
+                block: "end",
+              });
+            }}
+            pill
+            size="sm"
+          >Jump to latest</Button>
+        )}
+      </div>
 
       {selection && (
         <ChatSelectionActions
@@ -279,12 +323,6 @@ export function ChatConversation({
         onSend={sendDraft}
         onStop={stopPendingTurn}
         showRecoverableOutbound={Boolean(recoverableOutbound)}
-        showRetryFailure={Boolean(
-          error
-          && hasRetryableAssistantFailure
-          && !turnRecoveryNotice
-          && !recoverableOutbound
-        )}
         turnBusy={turnBusy}
         turnControlError={turnControlError}
         turnRecoveryNotice={turnRecoveryNotice}

@@ -776,6 +776,7 @@ test("create, list, and get expose only owned chats with empty or multiple targe
     explanationLanguage: "ru",
     targetCount: 2,
     messageCount: 0,
+    preview: "",
     createdAt: initialized.createdAt,
     updatedAt: initialized.updatedAt,
   });
@@ -1920,4 +1921,125 @@ test("opening a chat marks an abandoned pending assistant retryable", async () =
     error_code: "generation_interrupted",
     terminal_json: '{"termination":"lease_expired"}',
   });
+});
+
+test("chat lists carry a plain-text preview of the latest message without a schema change", async () => {
+  const { repository } = createFixture();
+  const chat = await repository.createChat("user-a", {
+    openingMessage: "## Welcome\n\nPick a **word** to practise.",
+  });
+  assert.equal((await repository.listChats("user-a"))[0].preview, "Welcome Pick a word to practise.");
+  assert.equal((await repository.getChat("user-a", chat.id)).preview, "Welcome Pick a word to practise.");
+
+  const started = await repository.beginTurn("user-a", chat.id, {
+    clientMessageId: "preview-1",
+    content: "Teach me *resilient*.",
+    practiceContext: [],
+  });
+  assert.equal((await repository.listChats("user-a"))[0].preview, "Teach me resilient.");
+  await repository.finishTurn("user-a", chat.id, "preview-1", {
+    attemptId: started.attempt.id,
+    content: "See [Cambridge](https://dictionary.cambridge.org) and `robust`:\n\n```js\nignored()\n```\n- **bounce back**",
+    provider: "openrouter",
+    model: "test/model",
+  });
+  assert.equal(
+    (await repository.getChatSummary("user-a", chat.id)).preview,
+    "See Cambridge and robust: bounce back",
+  );
+  assert.equal((await repository.listChats("user-b")).length, 0);
+});
+
+test("preview flattening is bounded, plain, and safe for empty input", () => {
+  const { toChatPreview } = repositoryModule;
+  assert.equal(toChatPreview(""), "");
+  assert.equal(toChatPreview(null), "");
+  assert.equal(toChatPreview("a\n\n  b\t c"), "a b c");
+  assert.equal(toChatPreview("snake_case stays _emphasis_"), "snake_case stays emphasis");
+  const long = toChatPreview("word ".repeat(80));
+  assert.equal([...long].length, 120);
+  assert.ok(long.endsWith("…"));
+});
+
+test("renaming trims, bounds, keeps the ordering timestamp, and stays owner scoped", async () => {
+  const { repository } = createFixture();
+  const chat = await repository.createChat("user-a");
+  const other = await repository.createChat("user-b");
+
+  const renamed = await repository.renameChat("user-a", chat.id, "  My   resilient\n practice  ");
+  assert.equal(renamed.title, "My resilient practice");
+  assert.equal(renamed.updatedAt, chat.updatedAt);
+  assert.equal((await repository.getChat("user-a", chat.id)).title, "My resilient practice");
+  const bounded = await repository.renameChat("user-a", chat.id, "x".repeat(140));
+  assert.equal([...bounded.title].length, 100);
+
+  await assert.rejects(repository.renameChat("user-b", chat.id, "Stolen"), hasCode("not_found"));
+  await assert.rejects(repository.renameChat("user-a", other.id, "Stolen"), hasCode("not_found"));
+  assert.equal((await repository.getChat("user-a", chat.id)).title, bounded.title);
+  assert.equal((await repository.getChat("user-b", other.id)).title, other.title);
+});
+
+test("deleting a chat removes everything hanging off it and never touches another user's chat", async () => {
+  const { repository, sqlite } = createFixture();
+  const chat = await repository.createChat("user-a", {
+    targets: [{ source: "saved", phraseId: "phrase-shared", meaningMode: "all_saved" }],
+    openingMessage: "Hello.",
+  });
+  const started = await repository.beginTurn("user-a", chat.id, {
+    clientMessageId: "delete-1",
+    content: "One turn.",
+    practiceContext: [],
+  });
+  await repository.finishTurn("user-a", chat.id, "delete-1", {
+    attemptId: started.attempt.id,
+    content: "Done.",
+    provider: "openrouter",
+    model: "test/model",
+  });
+  const survivor = await repository.createChat("user-a", { openingMessage: "Keep me." });
+  const foreign = await repository.createChat("user-b", { openingMessage: "Not yours." });
+
+  await assert.rejects(repository.deleteChat("user-b", chat.id), hasCode("not_found"));
+  await assert.rejects(repository.deleteChat("user-a", foreign.id), hasCode("not_found"));
+  assert.ok(await repository.getChat("user-a", chat.id));
+  assert.ok(await repository.getChat("user-b", foreign.id));
+
+  await repository.deleteChat("user-a", chat.id);
+  assert.equal(await repository.getChat("user-a", chat.id), null);
+  await assert.rejects(repository.deleteChat("user-a", chat.id), hasCode("not_found"));
+
+  const chatTables = sqlite.prepare(`
+    SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+  `).all().map((row) => row.name).filter((name) => (
+    sqlite.prepare(`PRAGMA table_info(${name})`).all().some((column) => column.name === "chat_id")
+  ));
+  assert.ok(chatTables.length >= 4, "messages, practice items, attempts and tool traces reference chats");
+  for (const table of chatTables) {
+    assert.equal(
+      sqlite.prepare(`SELECT count(*) AS count FROM ${table} WHERE chat_id = ?`).get(chat.id).count,
+      0,
+      table,
+    );
+  }
+  assert.equal((await repository.getChat("user-a", survivor.id)).messages.length, 1);
+  assert.equal((await repository.getChat("user-b", foreign.id)).messages.length, 1);
+  assert.equal(sqlite.prepare("SELECT count(*) AS count FROM phrases WHERE id = 'phrase-shared'").get().count, 1);
+  assert.deepEqual((await repository.listChats("user-a")).map((item) => item.id), [survivor.id]);
+});
+
+test("a chat cannot be deleted while its reply is being generated", async () => {
+  const { repository } = createFixture();
+  const chat = await repository.createChat("user-a");
+  const started = await repository.beginTurn("user-a", chat.id, {
+    clientMessageId: "busy-1",
+    content: "Still thinking.",
+    practiceContext: [],
+  });
+
+  await assert.rejects(repository.deleteChat("user-a", chat.id), hasCode("turn_in_progress"));
+  assert.ok(await repository.getChat("user-a", chat.id));
+  await repository.cancelTurn("user-a", chat.id, "busy-1");
+  await repository.deleteChat("user-a", chat.id);
+  assert.equal(await repository.getChat("user-a", chat.id), null);
+  assert.ok(started.attempt.id);
 });

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import { readGlobalStyles } from "./helpers/styles.mjs";
+import { readWorkspaceSource } from "./helpers/sources.mjs";
 
 test("build includes development preview metadata", async () => {
   const bundle = await readFile(
@@ -20,10 +22,7 @@ test("unified site navigation exposes every primary section", async () => {
   const home = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const library = await readFile(new URL("../app/library/page.tsx", import.meta.url), "utf8");
   const practice = await readFile(new URL("../app/practice/page.tsx", import.meta.url), "utf8");
-  const workspace = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const workspace = await readWorkspaceSource();
   const videos = await readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8");
   const integrations = await readFile(new URL("../app/integrations/page.tsx", import.meta.url), "utf8");
   const trainer = await readFile(new URL("../public/trainer.html", import.meta.url), "utf8");
@@ -37,7 +36,7 @@ test("unified site navigation exposes every primary section", async () => {
   ]) {
     assert.match(navigation, new RegExp(`href: "${href.replaceAll("/", "\\/")}"`));
     assert.match(navigation, new RegExp(`label: "${label}"`));
-    assert.match(trainer, new RegExp(`href="${href}"[^>]*>${label}<`));
+    assert.match(trainer, new RegExp(`href="${href}"[^>]*>[\\s\\S]*?site-primary-link-label">${label}<`));
   }
 
   assert.match(library, /<PhraseWorkspace surface="library"/);
@@ -50,14 +49,14 @@ test("unified site navigation exposes every primary section", async () => {
   assert.match(workspace, /<SiteNavigation\s+active=\{surface\}/);
   assert.match(videos, /<SiteNavigation\s+active="videos"/);
   assert.match(integrations, /<SiteNavigation\s+active="settings"/);
-  assert.match(trainer, /href="\/practice" aria-current="page">Practice<\/a>/);
+  assert.match(trainer, /href="\/practice" aria-current="page">[\s\S]*?site-primary-link-label">Practice</);
 });
 
 test("AI Chat has a public shell with an explicit account boundary", async () => {
   const [page, chat, styles] = await Promise.all([
     readFile(new URL("../app/chat/page.tsx", import.meta.url), "utf8").catch(() => ""),
     readFile(new URL("../app/components/ai-practice-chat.tsx", import.meta.url), "utf8").catch(() => ""),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readGlobalStyles(),
   ]);
 
   assert.match(page, /<AiPracticeChat\s*\/>/);
@@ -105,7 +104,7 @@ test("unified navigation stays on top for desktop and moves to the bottom on mob
     "utf8",
   );
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
-  const globalStyles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const globalStyles = await readGlobalStyles();
   const trainer = await readFile(new URL("../public/trainer.html", import.meta.url), "utf8");
 
   assert.match(globalStyles, /@import "\.\.\/public\/site-navigation\.css";/);
@@ -117,7 +116,8 @@ test("unified navigation stays on top for desktop and moves to the bottom on mob
   assert.match(styles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
   assert.match(styles, /\.site-primary-link \{[\s\S]*?min-height: 50px;/);
-  assert.match(trainer, /top: var\(--site-navigation-offset, 0\)/);
+  // The Trainer body must not become a scroll container, or the sticky navigation would never stick.
+  assert.doesNotMatch(trainer, /body \{[^}]*overflow-x: hidden/);
 });
 
 test("Library catalogs new phrases while Practice owns the learning queues", async () => {
@@ -126,11 +126,8 @@ test("Library catalogs new phrases while Practice owns the learning queues", asy
 
   const library = await readFile(new URL("../app/library/page.tsx", import.meta.url), "utf8");
   const practice = await readFile(new URL("../app/practice/page.tsx", import.meta.url), "utf8");
-  const workspace = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
-  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
+  const styles = await readGlobalStyles();
   const worker = await readFile(new URL("../worker/index.ts", import.meta.url), "utf8");
   const trainer = await readFile(new URL("../public/trainer.html", import.meta.url), "utf8");
 
@@ -139,13 +136,17 @@ test("Library catalogs new phrases while Practice owns the learning queues", asy
   assert.match(workspace, /const practiceTabs[^=]*=\s*\[[\s\S]*?To Learn[\s\S]*?Learning Now[\s\S]*?Learned[\s\S]*?\];/);
   assert.doesNotMatch(workspace.match(/const practiceTabs[^=]*=\s*\[([\s\S]*?)\];/)?.[1] || "", /Pick/);
   assert.match(workspace, /surface === "practice" \? "learning_now" : "pick"/);
-  assert.match(workspace, /phrase\.status === "pick"[\s\S]*?phrase\.analysis\?\.kind === activeFormat/);
+  // Filter counts describe the catalog the list shows, so a phrase you already added still counts.
+  assert.match(workspace, /phrases\.filter\(\(phrase\) => phrase\.analysis\?\.kind === kind\)\.length/);
+  assert.match(workspace, /const formatPhrases = phrases\.filter\(\(p\) => p\.analysis\?\.kind === activeFormat\)/);
+  assert.doesNotMatch(workspace, /phrase\.status === "pick" && phrase\.analysis\?\.kind === kind/);
   assert.match(workspace, /surface === "practice" && \([\s\S]*?aria-label="Learning sections"/);
-  assert.match(workspace, /<PracticeAction onClick=\{\(\) => openPhrase\(phrase\)\} \/>/);
+  assert.match(workspace, /<PracticeAction highlighted=\{isLearningNow\} onClick=\{\(\) => onOpen\(phrase\)\} \/>/);
+  assert.match(workspace, /onOpen=\{openPhrase\}/);
   assert.match(workspace, /window\.location\.assign\(`\/trainer\?\$\{query\.toString\(\)\}`\)/);
   assert.match(workspace, /Mark as Learned/);
-  assert.match(styles, /\.tabs \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.phrase-summary \{[^}]*cursor: default;/);
+  assert.match(styles, /\.practice-tabs \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.phrase-row \{[^}]*display: grid;/);
   assert.match(worker, /PUBLIC_DOCUMENT_PATHS[^;]*"\/practice"/);
   assert.match(worker, /PUBLIC_DOCUMENT_PATHS[^;]*"\/library"/);
   assert.match(worker, /PUBLIC_DOCUMENT_PATHS[^;]*"\/chat"/);
@@ -235,10 +236,7 @@ test("YouGlish uses a direct phrase query and Tatoeba tracks stay random", async
     new URL("../db/schema.ts", import.meta.url),
     "utf8",
   );
-  const page = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const page = await readWorkspaceSource();
   assert.match(trainer, /id="exampleMode"/);
   assert.match(trainer, /id="saveExampleBtn"/);
   assert.match(trainer, /`"\$\{query\}"`/);
@@ -335,7 +333,10 @@ test("Continue watching opens viewed videos in the shared YouGlish trainer", asy
   assert.match(page, /buildFullVideoTrainerUrl/);
   assert.match(page, /readYouTubeResume/);
   assert.match(page, /window\.location\.assign\(fullVideoUrl\)/);
-  assert.doesNotMatch(page, /method:\s*"POST"/);
+  // Watching history is recorded by the trainer; this page only ever POSTs to undo a removal.
+  const posts = [...page.matchAll(/method:\s*"POST"/g)];
+  assert.equal(posts.length, 1);
+  assert.ok(page.indexOf('method: "POST"') > page.indexOf("async function undoRemove()"));
   assert.doesNotMatch(page, /YouTubePlayer/);
   assert.doesNotMatch(page, /youtube\.com\/iframe_api|new window\.YT\.Player/);
 });
@@ -385,10 +386,7 @@ test("YouGlish results keep clip filters aligned and record history on Full Vide
     new URL("../public/trainer.html", import.meta.url),
     "utf8",
   );
-  const page = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const page = await readWorkspaceSource();
   const navigation = await readFile(
     new URL("../app/components/site-navigation.tsx", import.meta.url),
     "utf8",
@@ -411,7 +409,7 @@ test("YouGlish results keep clip filters aligned and record history on Full Vide
   assert.match(trainer, /history\.pushState\([^;]+fullVideo/s);
   assert.match(trainer, /currentYouglishVideoId/);
   assert.match(trainer, /\^\[A-Za-z0-9_-\]\{11\}\$/);
-  assert.match(trainer, /const itemLabel = state\.source === "tatoeba" \? "track" : "clip"/);
+  assert.match(trainer, /const itemLabel = state\.source === "tatoeba" \? "example" : "clip"/);
   assert.match(trainer, /function recordCurrentVideoHistory\(origin, progress\)/);
   assert.match(trainer, /saveGuestVideo\(origin\)/);
   assert.equal(
@@ -454,10 +452,7 @@ test("learning phrases persist and render their translation", async () => {
     new URL("../lib/vocabulary/repository.ts", import.meta.url),
     "utf8",
   );
-  const page = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const page = await readWorkspaceSource();
   assert.match(route, /createVocabularyRepository\(db\)\.addEntry/);
   assert.match(repository, /createVocabularyMutationPlanner/);
   assert.match(repository, /await db\.batch\(plan\.statements\)/);
@@ -467,7 +462,7 @@ test("learning phrases persist and render their translation", async () => {
   assert.match(route, /COALESCE\(progress\.status, 'pick'\) != 'pick'/);
   assert.match(route, /p\.translation = ''/);
   assert.match(route, /phrase_progress/);
-  assert.match(page, /className="phrase-translation"/);
+  assert.match(page, /phrase\.translation \? `Your phrase · \$\{phrase\.translation\}`/);
 });
 
 test("MVP UX persists phrase context and exposes global library sorting", async () => {
@@ -479,10 +474,7 @@ test("MVP UX persists phrase context and exposes global library sorting", async 
     new URL("../db/schema.ts", import.meta.url),
     "utf8",
   );
-  const page = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const page = await readWorkspaceSource();
   const migration = await readFile(
     new URL("../drizzle/0005_special_ogun.sql", import.meta.url),
     "utf8",
@@ -521,8 +513,8 @@ test("MVP UX keeps saved filters global and separates caption/video navigation",
   assert.match(trainer, /repeatCaptionBtn/);
   assert.doesNotMatch(trainer, /captionNavigationMethod/);
   assert.doesNotMatch(trainer, /move\(-5\)/);
-  assert.match(trainer, /class="learning-workspace"/);
-  assert.match(trainer, /class="media-panel"/);
+  assert.match(trainer, /class="learning-workspace ui-card"/);
+  assert.match(trainer, /class="media-panel ui-card"/);
   assert.match(trainer, /id="translationAddBtn"/);
 });
 
@@ -560,8 +552,11 @@ test("trainer primary controls expose familiar icons with accessible labels", as
   assert.ok((trainer.match(/class="button-icon"/g) || []).length >= 8);
   assert.match(trainer, /class="button-label">Previous<\/span>/);
   assert.match(trainer, /aria-label="Pause playback"/);
-  assert.match(trainer, /aria-label="Save current example"/);
-  assert.match(trainer, /\.player-controls \.button-label \{ display: none; \}/);
+  assert.match(trainer, /aria-label="Save current clip"/);
+  // Previous/Next are icon-only; their names come from aria-label and title.
+  assert.match(trainer, /\.player-nav \.button-label \{ display: none; \}/);
+  assert.match(trainer, /id="prevCaptionBtn" class="player-nav ui-button"[^>]*aria-label="Previous caption" title="Previous caption"/);
+  assert.match(trainer, /id="nextVideoBtn" class="player-nav ui-button"[^>]*aria-label="Next video" title="Next video"/);
 });
 
 test("trainer uses one unbroken toolbar and one stateful play pause control", async () => {
@@ -594,12 +589,15 @@ test("trainer keeps primary controls compact across desktop and mobile", async (
   );
 
   assert.match(trainer, /\.control-group \{\s*display: contents;/);
-  assert.match(trainer, /\.player-controls button \{[\s\S]*?flex: 1 1 0;/);
+  assert.match(trainer, /@media \(max-width: 1099px\)[\s\S]*?\.player-controls \.player-nav \{ flex: 1 1 0; \}/);
   assert.match(trainer, /class="caption-navigation-status"/);
   assert.doesNotMatch(trainer, /id="captionNavigationHint" class="control-group-hint"/);
-  assert.match(trainer, /@media \(max-width: 560px\)[\s\S]*?\.player-controls \{ gap: 3px; padding: 4px; \}/);
+  // From 1100px the bar is the original single centred row; below that it splits into transport and tools rows.
+  assert.match(trainer, /\.player-controls \{\s*display: flex;\s*flex-wrap: nowrap;\s*align-items: stretch;\s*justify-content: center;/);
+  assert.match(trainer, /@media \(max-width: 1099px\)[\s\S]*?\.player-controls \{ flex-wrap: wrap;[\s\S]*?\.player-controls::before \{ content: ""; order: 6; flex: 0 0 100%;/);
+  assert.match(trainer, /\.player-nav \{ flex: 0 0 var\(--control-md\)/);
   assert.doesNotMatch(trainer, /\.player-controls\.caption-controls-hidden/);
-  assert.match(trainer, /\.example-tools \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(trainer, /\.example-tools \{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;/);
 });
 
 test("trainer controls use one polished visual system", async () => {
@@ -608,45 +606,69 @@ test("trainer controls use one polished visual system", async () => {
     "utf8",
   );
 
+  // Every button in the page body is the shared kit button (public/ui.css), never a bespoke one.
+  const body = trainer.slice(trainer.indexOf("<main"), trainer.indexOf("</main>"));
+  const buttons = [...body.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
+  assert.ok(buttons.length >= 20);
+  for (const tag of buttons) assert.match(tag, /\bui-button\b/, `bespoke button: ${tag}`);
+
+  // One primary action on the screen (Play); Continue in video and Save clip are neutral secondary buttons.
+  assert.match(trainer, /id="playPauseBtn" class="player-play ui-button ui-button--primary"/);
+  assert.match(trainer, /id="watchFullVideoBtn" class="media-full-video-btn ui-button"/);
+  const stage = trainer.slice(trainer.indexOf('class="trainer-stage"'), trainer.indexOf("</section>", trainer.indexOf('class="trainer-stage"')));
+  assert.equal((stage.match(/ui-button--primary/g) || []).length, 1);
+  assert.match(trainer, /id="saveExampleBtn" class="save-example-btn ui-button"/);
+  assert.match(trainer, /data-source="youglish"/);
+  assert.match(trainer, /class="ui-button ui-button--ghost" type="button" data-example-mode="saved"/);
+
+  // Toggles (Repeat, Slow, source and example segments) share the kit's soft pressed look through aria-pressed;
+  // a saved clip mirrors it.
+  const kit = await readFile(new URL("../public/ui.css", import.meta.url), "utf8");
   assert.match(
-    trainer,
-    /\.player-controls \{[\s\S]*?background: var\(--color-surface\);[\s\S]*?box-shadow:/,
+    kit,
+    /\.ui-button\[aria-pressed="true"\]:not\(:disabled\) \{[\s\S]*?--ui-bg: var\(--color-interactive-soft-hover\);[\s\S]*?--ui-border: var\(--color-interactive\);[\s\S]*?--ui-shadow: inset 0 0 0 1px var\(--color-interactive\);/,
   );
   assert.match(
     trainer,
-    /\.player-controls button \{[\s\S]*?border: 1px solid var\(--color-control-border\);[\s\S]*?border-radius: 11px;[\s\S]*?background: var\(--color-control-background\);[\s\S]*?color: var\(--color-action-secondary-text\);/,
+    /\.save-example-btn\.saved \{[\s\S]*?--ui-bg: var\(--color-interactive-soft-hover\);[\s\S]*?--ui-shadow: inset 0 0 0 1px var\(--color-interactive\);/,
   );
+  assert.match(trainer, /id="slowPlaybackBtn" class="slow-playback-btn ui-button"/);
+  assert.match(trainer, /id="repeatCaptionBtn" class="ui-button"/);
   assert.match(
     trainer,
-    /\.example-tools \{[\s\S]*?padding: 6px;[\s\S]*?border: 1px solid var\(--color-border\);[\s\S]*?border-radius: 16px;[\s\S]*?background: var\(--color-surface\);/,
-  );
-  assert.match(
-    trainer,
-    /\.example-settings \.segmented \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
-  );
-  assert.match(
-    trainer,
-    /\.example-settings \.segmented button\.active \{[\s\S]*?border-color: var\(--color-interactive-border\);[\s\S]*?background: var\(--color-interactive-soft-hover\);/,
-  );
-  assert.match(
-    trainer,
-    /\.media-full-video-btn \{[\s\S]*?background: var\(--color-interactive-surface\);[\s\S]*?color: var\(--color-on-interactive\);[\s\S]*?box-shadow:/,
-  );
-  assert.match(
-    trainer,
-    /\.segmented button\.active \{[\s\S]*?background: var\(--color-interactive-soft-hover\);[\s\S]*?box-shadow:/,
+    /\.segmented \{[\s\S]*?border: 1px solid var\(--color-border\);[\s\S]*?background: var\(--color-surface-subtle\);/,
   );
   assert.match(trainer, /\.control-select \{[\s\S]*?position: relative;/);
   assert.doesNotMatch(trainer, /\.control-select::after/);
-  assert.match(trainer, /\.slow-playback-btn\[aria-pressed="true"\] \{[\s\S]*?background:/);
+  assert.match(trainer, /class="ui-select ui-select--control" aria-label="Accent"/);
+  assert.match(kit, /\.ui-select--control \{[\s\S]*?border-color: var\(--color-button-border\);/);
+  assert.match(kit, /\.ui-button \{[\s\S]*?--ui-border: var\(--color-button-border\);/);
+  assert.match(trainer, /\.save-example-btn\.saved \.button-icon svg \{ fill: currentcolor; \}/);
+  assert.match(trainer, /\.player-play \.button-icon svg \{ fill: currentcolor; \}/);
   assert.match(
     trainer,
-    /\.example-actions \{[\s\S]*?align-items: center;[\s\S]*?border-left: 1px solid var\(--color-border\);/,
+    /@media \(max-width: 1099px\)[\s\S]*?\.control-select \.ui-select \{ min-width: 0; padding: 0 26px 0 12px; font-size: 13px; \}/,
   );
-  assert.match(
-    trainer,
-    /@media \(max-width: 560px\)[\s\S]*?\.control-select select \{[\s\S]*?font-size: 10\.5px;/,
+});
+
+test("Play/Pause is icon-only everywhere and Slow is icon-only on phones", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
   );
+
+  const play = trainer.match(/<button id="playPauseBtn"[\s\S]*?<\/button>/)[0];
+  assert.match(play, /aria-label="Pause playback" title="Pause playback"/);
+  assert.doesNotMatch(play, /button-label/, "the name comes from aria-label and title");
+  assert.match(trainer, /setButtonIcon\(el\.playPauseBtn, isPlaying \? "pause" : "play"\);/);
+  assert.match(trainer, /el\.playPauseBtn\.setAttribute\("aria-label", accessibleLabel\);\s*el\.playPauseBtn\.title = accessibleLabel;/);
+  assert.doesNotMatch(trainer, /setButtonLabel\(el\.playPauseBtn|function setButton\(/);
+  assert.match(trainer, /\.player-controls \.player-play \{ min-width: 68px; padding: 0 20px; \}/);
+  // Slow keeps aria-label/title and its pressed ring; only the visible word goes away on phones.
+  assert.match(trainer, /id="slowPlaybackBtn" class="slow-playback-btn ui-button" type="button" aria-label="Slow playback" title="Slow playback"/);
+  assert.match(trainer, /@media \(max-width: 760px\) \{[\s\S]*?\.slow-playback-btn \.button-label \{ display: none; \}/);
+  // Row 2 (Replay, Repeat, accent, Slow) stays on one line; the narrowest phones keep only icons for Replay and Repeat.
+  assert.match(trainer, /@media \(max-width: 359px\) \{\s*#replayBtn \.button-label, #repeatCaptionBtn \.button-label \{ display: none; \}/);
 });
 
 test("mobile trainer puts example choices and captions before controls and media", async () => {
@@ -657,32 +679,120 @@ test("mobile trainer puts example choices and captions before controls and media
 
   assert.match(
     trainer,
-    /@media \(max-width: 760px\)[\s\S]*?\.learning-workspace \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;[\s\S]*?\.source-row \{[\s\S]*?order: 1;[\s\S]*?\.example-tools \{[\s\S]*?order: 2;[\s\S]*?\.caption-box \{[\s\S]*?order: 4;[\s\S]*?\.player-controls \{[\s\S]*?order: 8;/,
+    /\.learning-workspace \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
+  );
+  assert.match(
+    trainer,
+    /@media \(max-width: 760px\)[\s\S]*?\.source-row \{ order: 1; \}[\s\S]*?\.example-tools \{ order: 2; \}[\s\S]*?\.caption-box \{ order: 4;[\s\S]*?\.player-controls \{ order: 8; \}/,
   );
 });
 
-test("desktop mirrors the mobile learning flow and places media last", async () => {
+test("trainer is one full-width column with the controls above the video", async () => {
   const trainer = await readFile(
     new URL("../public/trainer.html", import.meta.url),
     "utf8",
   );
 
+  // DOM order: workspace (source, choices, captions, controls) first, media second.
   const source = trainer.indexOf('id="sourceSwitch"');
   const choices = trainer.indexOf('id="exampleTools"');
   const captions = trainer.indexOf('class="caption-box"');
   const controls = trainer.indexOf('id="playerControls"');
   const saveClip = trainer.indexOf('id="saveExampleBtn"');
   const watchFullVideo = trainer.indexOf('id="watchFullVideoBtn"');
-  const media = trainer.indexOf('class="media-panel"');
+  const media = trainer.indexOf('class="media-panel ui-card"');
   const mediaFrame = trainer.indexOf('id="mediaFrameSlot"');
 
   assert.ok(source < choices && choices < saveClip && saveClip < watchFullVideo);
   assert.ok(watchFullVideo < captions && captions < controls && controls < media);
   assert.ok(media < mediaFrame);
+
+  // One column at every width, both cards on the full page width (.app is 1240px at most).
   assert.match(
     trainer,
-    /\.sticky-stage \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-areas: "workspace" "media";/,
+    /\.trainer-stage \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-areas: "workspace" "media";/,
   );
+  assert.match(trainer, /\.app \{\s*width: min\(1240px, 100%\);\s*margin: 0 auto;/);
+  // No side-by-side layout, no narrower centred column, no viewport-height sizing of the cards.
+  assert.doesNotMatch(trainer, /grid-template-areas: "media workspace"|minmax\(0, 3fr\)|position: sticky;/);
+  assert.doesNotMatch(trainer, /--trainer-column|--trainer-chrome|--trainer-video-ratio|100dvh|justify-self: center/);
+  assert.doesNotMatch(trainer, /\.media-panel \{[^}]*(?<![-\w])width:/);
+  // The old sticky band is gone, and body must not become a scroll container (it would break the sticky navigation).
+  assert.doesNotMatch(trainer, /sticky-stage/);
+  assert.doesNotMatch(trainer, /body \{[^}]*overflow-x: hidden/);
+});
+
+test("phones get a compact workspace: paired example buttons, hint on the label line, tight padding", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  const phones = trainer.match(/@media \(max-width: 560px\) \{\s*\.app \{ padding-left: 8px; padding-right: 8px; \}[\s\S]*?\n    \}/)?.[0] || "";
+  assert.match(phones, /\.viewer-header \{ gap: 10px; padding: 6px 0; \}/);
+  assert.match(phones, /\.learning-workspace \{ padding: 8px; gap: 8px; \}/);
+  assert.match(phones, /\.source-row \{ padding-bottom: 0; border-bottom: 0; \}/);
+  assert.match(phones, /\.caption-label \{ flex-wrap: nowrap; margin-bottom: 4px; \}/);
+  assert.match(phones, /text-overflow: ellipsis; white-space: nowrap;/);
+  // All|Saved on its own row; Save clip and Continue in video share the next one in two equal columns.
+  assert.match(
+    trainer,
+    /@media \(max-width: 560px\) \{\s*\.example-tools \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 8px; \}\s*\.example-settings \{ grid-column: 1 \/ -1; \}/,
+  );
+  assert.match(trainer, /\.example-actions:has\(#watchFullVideoBtn\[hidden\]\) #saveExampleBtn \{ grid-column: 1 \/ -1; \}/);
+  assert.match(trainer, /@media \(max-width: 374px\) \{\s*\.example-tools \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.3fr\); \}/);
+});
+
+test("the hidden phrase-list panel is gone and provider terms stay visible in a small footer", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(trainer, /viewer-mode|id="currentSection"|id="phraseList"|id="randomBtn"|id="addPhraseBtn"|id="exportBtn"|id="importBtn"|id="stateMessage"|id="tagFilter"/);
+  assert.doesNotMatch(trainer, /function (renderList|renderCurrent|randomUndone|addCustom|exportState|importState|choosePhrase)\b/);
+  assert.doesNotMatch(trainer, /full-video-mode footer/, "the footer must stay visible in Full Video mode");
+  assert.match(
+    trainer,
+    /<footer class="trainer-footer">\s*<a href="https:\/\/www\.youtube\.com\/t\/terms"[^>]*>YouTube Terms of Service<\/a>\s*<a href="https:\/\/policies\.google\.com\/privacy"[^>]*>Google Privacy Policy<\/a>\s*<\/footer>/,
+  );
+  assert.match(trainer, /\.trainer-footer a \{[\s\S]*?min-height: var\(--control-md\);[\s\S]*?color: var\(--color-text-secondary\);/);
+});
+
+test("trainer copy says clip for videos and example for Tatoeba, and captions are not a live region", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(trainer, /const itemLabel = state\.source === "tatoeba" \? "example" : "clip";\s*const mediaLabel = state\.source === "tatoeba" \? "Example" : "Clip";/);
+  assert.match(trainer, /`\$\{mediaLabel\} saved; phrase added to To Learn\.`/);
+  assert.match(trainer, /`Adding phrase to To Learn and saving \$\{itemLabel\}…`/);
+  assert.match(trainer, /`Saving \$\{itemLabel\}…`/);
+  assert.match(trainer, /`Saved example \$\{savedExampleIndex \+ 1\}/);
+  assert.match(trainer, /`Saved clip \$\{savedExampleIndex \+ 1\}/);
+  assert.doesNotMatch(trainer, /Saved track|Track saved|Saving video|Video saved|Save current example"[^>]*disabled/);
+  assert.match(trainer, /<span>Tap or click a word, or select a phrase<\/span>/);
+  assert.doesNotMatch(trainer, /click a word or select a phrase/);
+  // Every caption change would be announced; only status/message regions are live.
+  assert.match(trainer, /<div class="caption-box">/);
+  assert.doesNotMatch(trainer, /class="caption-box"[^>]*aria-live/);
+  assert.match(trainer, /id="translationResult" class="translation-result" role="status"/);
+  assert.match(trainer, /id="exampleMessage" class="example-message" role="status"/);
+  assert.match(trainer, /id="selectionMessage" class="selection-message" role="status"/);
+});
+
+test("Save clip works for a phrase outside the library and Back falls back to the Library", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(trainer, /el\.saveExampleBtn\.disabled = !currentExternalId \|\| saveExampleBusy;/);
+  assert.doesNotMatch(trainer, /learningPhrase|To save examples, first add the phrase to To Learn/);
+  assert.match(trainer, /async function addViewerPhraseToLearn\(\)/);
+  assert.match(trainer, /if \(!VIEWER_PHRASE_ID\) \{\s*showExampleMessage\(`Adding phrase to To Learn and saving \$\{itemLabel\}…`\);/);
+  assert.match(trainer, /el\.backBtn\.addEventListener\("click", \(\) => \{\s*if \(history\.length > 1\) history\.back\(\);\s*else window\.location\.href = "\/library";/);
 });
 
 test("trainer renders a prominent non-blocking restoring banner inside the video", async () => {
@@ -717,7 +827,11 @@ test("mobile trainer places media directly after the shared toolbar", async () =
 
   assert.match(
     trainer,
-    /@media \(max-width: 760px\)[\s\S]*?\.learning-workspace \{[\s\S]*?padding: 8px;[\s\S]*?\.example-tools \{[\s\S]*?margin-top: 0;[\s\S]*?\.caption-box \{[\s\S]*?margin-top: 6px;[\s\S]*?padding: 10px;[\s\S]*?\.player-controls \{[\s\S]*?margin-top: 6px;[\s\S]*?\.media-panel \{[\s\S]*?margin-top: 4px;[\s\S]*?padding: 6px;/,
+    /@media \(max-width: 760px\) \{\s*\.app \{ padding-bottom: 64px; \}\s*\.learning-workspace \{ padding: 12px; \}\s*\.media-panel \{ padding: 6px; \}/,
+  );
+  assert.ok(
+    trainer.indexOf('id="playerControls"') < trainer.indexOf('class="media-panel ui-card"'),
+    "the media panel follows the shared toolbar",
   );
   assert.doesNotMatch(trainer, /class="media-heading"/);
 });
@@ -747,27 +861,22 @@ test("mobile example controls align to two columns and collapse Tatoeba actions"
   assert.doesNotMatch(trainer, /aria-label="Random order"/);
   assert.doesNotMatch(trainer, /aria-label="Ordered"/);
   assert.match(trainer, /id="watchFullVideoBtn"[^>]*aria-label="Continue in video"[^>]*title="Continue in video"/);
-  assert.match(trainer, /\.player-controls button \{[\s\S]*?min-height: 44px;/);
-  assert.match(trainer, /#sourceSwitch button,\s*\.example-settings \.segmented button \{\s*min-height: 44px;/);
+  // 44px touch targets come from the kit's md button; small buttons are promoted on touch screens.
+  assert.match(trainer, /\.player-controls \.ui-button \{[\s\S]*?min-width: var\(--control-md\);/);
+  const ui = await readFile(new URL("../public/ui.css", import.meta.url), "utf8");
+  assert.match(ui, /@media \(max-width: 760px\), \(pointer: coarse\) \{\s*\.ui-button--sm \{ --ui-height: var\(--control-md\); \}/);
+  assert.match(trainer, /\.segmented \.ui-button \{\s*flex: 1 0 auto;/);
+  // Wider screens: one wrapping row. Phones: All|Saved, then Save clip and Continue in video side by side;
+  // Continue in video simply disappears (hidden) when there is nothing to continue and Save clip takes the row.
   assert.match(
     trainer,
-    /@media \(max-width: 560px\)[\s\S]*?\.example-tools \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+    /\.example-tools \{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;[\s\S]*?\.example-settings \{ flex: 0 0 auto; \}/,
   );
   assert.match(
     trainer,
-    /\.example-settings \.segmented \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*?width: 100%;/,
+    /@media \(max-width: 560px\) \{\s*\.example-tools \{ display: grid;[\s\S]*?\.example-actions \{ display: contents; \}\s*\.example-actions \.ui-button \{ min-width: 0; padding: 0 10px; gap: 6px; \}/,
   );
-  assert.match(
-    trainer,
-    /\.example-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*?gap: 6px;[\s\S]*?padding: 0;[\s\S]*?border: 0;/,
-  );
-  assert.match(trainer, /\.example-actions \.button-label \{ display: inline; \}/);
-  assert.match(trainer, /\.example-settings \.segmented button,\s*\.example-actions button \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;[\s\S]*?min-height: 44px;[\s\S]*?padding: 8px 6px;/);
-  assert.match(
-    trainer,
-    /\.media-full-video-btn \{[\s\S]*?margin-left: 0;[\s\S]*?border: 1px solid var\(--color-interactive-border\);[\s\S]*?background: var\(--color-interactive-soft\);[\s\S]*?color: var\(--color-interactive\);[\s\S]*?box-shadow: none;/,
-  );
-  assert.match(trainer, /\.example-actions:has\(\.media-full-video-btn\[hidden\]\) \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(await readFile(new URL("../public/app-theme.css", import.meta.url), "utf8"), /\[hidden\] \{ display: none !important; \}/);
   assert.match(trainer, /const validYouTubeVideo = isYouGlish && \/\^\[A-Za-z0-9_-\]\{11\}\$\//);
   assert.match(
     trainer,
@@ -851,11 +960,12 @@ test("phrase controls use timing-aware caption events and expose repeat state", 
 
   assert.match(trainer, /id="repeatCaptionBtn"/);
   assert.match(trainer, /aria-pressed/);
-  assert.match(trainer, /#repeatCaptionBtn\[aria-pressed="true"\]\s*\{[^}]*background:/);
-  assert.ok(
-    trainer.indexOf('#repeatCaptionBtn[aria-pressed="true"]')
-      > trainer.indexOf(".player-controls button:hover:not(:disabled)"),
-    "the pressed Repeat style must override the generic hover style",
+  // Repeat is a toggle: aria-pressed drives the shared pressed look, hover keeps it.
+  assert.match(trainer, /id="repeatCaptionBtn" class="ui-button"[^>]*aria-pressed="false"/);
+  assert.match(trainer, /el\.repeatCaptionBtn\.setAttribute\("aria-pressed", String\(repeatCaptionEnabled\)\)/);
+  assert.match(
+    await readFile(new URL("../public/ui.css", import.meta.url), "utf8"),
+    /\.ui-button\[aria-pressed="true"\]:not\(:disabled\) \{[\s\S]*?--ui-bg-hover: var\(--color-interactive-soft-hover\);[\s\S]*?--ui-shadow-hover: inset 0 0 0 1px var\(--color-interactive\);/,
   );
   assert.match(trainer, /onCaptionConsumed/);
   assert.match(trainer, /onPlayerStateChange/);

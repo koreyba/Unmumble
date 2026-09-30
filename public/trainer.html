@@ -8,9 +8,16 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>Unmumble</title>
   <style>
-    :root { --radius: 16px; }
-
+    /*
+     * Trainer page.
+     * Colour, radius, sizing and motion tokens come from app-theme.css; buttons, fields, cards,
+     * notices and skeletons come from ui.css (.ui-*). This block only holds Trainer-specific layout
+     * plus the few pieces that are Trainer-specific (segmented control, icon + label buttons).
+     * app-theme.css and ui.css are linked AFTER this block, so anything that has to beat a .ui-*
+     * rule sets its --ui-* custom properties on a more specific selector instead of relying on order.
+     */
     * { box-sizing: border-box; }
+
     html {
       min-height: 100%;
       overflow-x: hidden;
@@ -25,184 +32,442 @@
     html::-webkit-scrollbar-thumb {
       background: var(--color-scrollbar);
       border: 3px solid var(--color-surface);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
     }
     html::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-hover); }
 
-    body {
-      min-height: 100%;
-      margin: 0;
-      overflow-x: hidden;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--app-ui-font);
-      line-height: 1.45;
-    }
+    /* No overflow on body: it would become the scroll container and break every position: sticky below it. */
+    body { line-height: 1.45; }
 
-    button, input, select {
-      font: inherit;
-    }
-
-    button, select, input[type="text"] {
-      color: var(--text);
-      background: var(--panel-2);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    button {
-      cursor: pointer;
-      min-height: 44px;
-      padding: 9px 12px;
-    }
-
-    button:hover { border-color: var(--color-border-strong); }
-    button:focus-visible, input:focus-visible, select:focus-visible {
-      outline: 2px solid var(--color-focus);
-      outline-offset: 2px;
-    }
+    button, input, select { font: inherit; }
 
     .app {
       width: min(1240px, 100%);
       margin: 0 auto;
-      padding: 0 12px 40px;
+      padding: 0 12px 80px;
     }
 
+    /* ── Header ── */
     .viewer-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 0 10px;
+      gap: 14px;
+      padding: 14px 0 12px;
     }
 
-    .back-button {
-      flex: 0 0 auto;
-      border-color: var(--color-action-secondary-border);
-      background: var(--color-action-secondary-background);
-      color: var(--color-action-secondary-text);
-    }
+    .back-button { flex: 0 0 auto; }
 
-    .viewer-account-link {
-      flex: 0 0 auto;
-      margin-left: auto;
-      color: var(--accent-2);
-      font-size: 13px;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .viewer-account-link:hover { text-decoration: underline; }
-
-    .viewer-heading {
-      min-width: 0;
-    }
+    .viewer-heading { min-width: 0; }
 
     .viewer-heading span {
       display: block;
-      color: var(--muted);
+      color: var(--color-text-secondary);
       font-size: 11px;
       font-weight: 750;
       letter-spacing: .1em;
       text-transform: uppercase;
     }
 
-    .viewer-heading strong {
-      display: block;
-      margin-top: 3px;
-      font-size: clamp(18px, 4vw, 25px);
+    .viewer-phrase {
+      margin: 3px 0 0;
+      font-size: clamp(20px, 5.4vw, 28px);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.15;
       overflow-wrap: anywhere;
     }
 
-    .sticky-stage {
-      position: sticky;
-      top: var(--site-navigation-offset, 0);
-      z-index: 20;
-      margin: 0 -12px;
-      padding: max(10px, env(safe-area-inset-top)) 12px 12px;
-      background: var(--color-sticky-background);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--line);
+    /*
+     * Stage: learning workspace + media.
+     * One column at every width: the workspace card (source, example tools, captions, controls) sits above
+     * the media card, and both cards use the full page width.
+     */
+    .trainer-stage {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       grid-template-areas: "workspace" "media";
       align-items: start;
-      gap: 14px;
-      transition: grid-template-columns .24s ease;
+      gap: 12px;
+      padding-top: 4px;
     }
 
     .learning-workspace {
       grid-area: workspace;
+      display: flex;
       min-width: 0;
-      padding: 12px;
-      border: 1px solid var(--color-border);
-      border-radius: 16px;
-      background: var(--app-card-background);
-      box-shadow: var(--shadow-card);
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
     }
 
     .media-panel {
       grid-area: media;
       min-width: 200px;
       padding: 10px;
-      border: 1px solid var(--color-border);
-      border-radius: 16px;
-      background: var(--app-card-background);
-      box-shadow: var(--shadow-card);
     }
 
-    .media-full-video-btn {
-      display: inline-flex;
+    .source-row > span,
+    .caption-label > span:first-child,
+    .tatoeba-kicker {
+      color: var(--color-label);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .source-row {
+      display: flex;
       align-items: center;
-      gap: 7px;
-      min-height: 44px;
-      padding: 8px 13px;
-      border: 1px solid var(--color-interactive-border);
-      border-radius: 12px;
-      background: var(--color-interactive-surface);
-      color: var(--color-on-interactive);
-      box-shadow: 0 8px 20px var(--color-interactive-shadow), inset 0 1px 0 var(--color-overlay-strong);
-      font-size: 12px;
-      font-weight: 800;
-      white-space: nowrap;
-      transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--color-border);
     }
 
-    .media-full-video-btn:hover:not(:disabled) {
-      border-color: var(--color-focus);
-      filter: brightness(1.06);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-card), inset 0 1px 0 var(--color-overlay-strong);
+    body.full-video-mode .source-row,
+    body.full-video-mode .video-navigation,
+    body.full-video-mode #replayBtn,
+    body.full-video-mode #exampleTools {
+      display: none !important;
     }
 
-    .media-full-video-btn svg {
-      width: 15px;
-      height: 15px;
+    /* ── Buttons: icon + label, pressed toggles, segmented control ── */
+    .button-icon {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+    }
+
+    .button-icon svg {
+      display: block;
+      width: 100%;
+      height: 100%;
       fill: none;
-      stroke: currentColor;
+      stroke: currentcolor;
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-width: 1.8;
     }
 
-    .media-full-video-btn[hidden] { display: none; }
+    .button-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-    .media-frame-slot {
+    /* Pressed toggles come from ui.css (.ui-button[aria-pressed="true"]); a saved clip looks the same. */
+    .save-example-btn.saved {
+      --ui-bg: var(--color-interactive-soft-hover);
+      --ui-bg-hover: var(--color-interactive-soft-hover);
+      --ui-fg: var(--color-text-primary);
+      --ui-border: var(--color-interactive);
+      --ui-border-hover: var(--color-interactive);
+      --ui-shadow: inset 0 0 0 1px var(--color-interactive);
+      --ui-shadow-hover: inset 0 0 0 1px var(--color-interactive);
+    }
+
+    .ui-button[aria-pressed="true"] .button-icon,
+    .save-example-btn.saved .button-icon { color: var(--color-interactive-link); }
+
+    .save-example-btn.saved .button-icon svg { fill: currentcolor; }
+
+    .ui-button[aria-busy="true"] { pointer-events: none; }
+
+    .segmented {
+      display: inline-flex;
+      min-width: 0;
+      margin: 0;
+      padding: 3px;
+      gap: 3px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface-subtle);
+    }
+
+    fieldset.segmented { min-inline-size: 0; }
+
+    .segmented .ui-button {
+      flex: 1 0 auto;
+      padding: 0 16px;
+    }
+
+    .segmented .ui-button[aria-pressed="true"]:not(:disabled) {
+      --ui-shadow: var(--shadow-soft);
+      --ui-shadow-hover: var(--shadow-soft);
+    }
+
+    /* ── Example tools ── */
+    .example-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .example-settings { flex: 0 0 auto; }
+
+    .example-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .example-count {
+      display: inline-grid;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      place-items: center;
+      border-radius: var(--radius-pill);
+      background: var(--color-overlay-soft);
+      color: var(--color-text-primary);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    .example-message {
+      margin: 0;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .example-message.error { color: var(--color-danger); }
+
+    /* Empty live regions stay in the accessibility tree without taking any space. */
+    .example-message:empty,
+    .selection-message:empty {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    /* ── Captions ── */
+    .caption-box {
+      padding: 14px 16px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+    }
+
+    .caption-label {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 2px 12px;
+      margin-bottom: 8px;
+    }
+
+    .caption-label > span:last-child {
+      color: var(--color-text-tertiary);
+      font-size: 12px;
+    }
+
+    .caption-text {
+      min-height: 3em;
+      font-size: clamp(18px, 5vw, 24px);
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      user-select: text;
+    }
+
+    .caption-word {
+      display: inline;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .caption-word:focus-visible {
+      background-color: var(--color-interactive-soft-hover);
+      color: var(--color-interactive-link);
+    }
+
+    @media (hover: hover) {
+      .caption-word:hover {
+        background-color: var(--color-interactive-soft-hover);
+        color: var(--color-interactive-link);
+      }
+    }
+
+    /* The words of the phrase being trained are marked; the marker sweeps in when a caption renders. */
+    .caption-word.query-word {
+      padding: 0 2px;
+      margin: 0 -2px;
+      background-image: linear-gradient(var(--color-interactive-soft-hover), var(--color-interactive-soft-hover));
+      background-position: 0 100%;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      color: var(--color-interactive-link);
+      font-weight: 700;
+    }
+
+    .caption-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .selection-preview {
+      flex: 1 0 100%;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .selection-message {
+      margin-top: 8px;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+    .selection-message.ok { color: var(--color-success); }
+    .selection-message.error { color: var(--color-danger); }
+
+    .translation-box {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface-raised);
+      box-shadow: inset 3px 0 0 var(--color-interactive);
+    }
+    .translation-box.visible { display: block; }
+
+    .translation-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .translation-source {
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .translation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+    .translation-result {
+      color: var(--color-text-primary);
+      font-size: 18px;
+      font-weight: 650;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    .translation-result.loading { color: var(--color-text-secondary); font-weight: 500; }
+    .translation-result.error { color: var(--color-danger); }
+
+    .status {
+      margin: 0;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    .status.error {
+      padding: 10px 14px;
+      border: 1px solid var(--color-danger-border);
+      border-radius: var(--radius-md);
+      background: var(--color-danger-background);
+      color: var(--color-danger);
+    }
+
+    .status:not(.error),
+    .caption-navigation-status { display: none; }
+
+    .no-results:not(.visible) { display: none; }
+    .no-results { flex-wrap: wrap; }
+
+    .no-results .ui-button {
+      min-height: var(--control-md);
+      padding: 8px 14px;
+      line-height: 1.3;
+      text-align: left;
+      white-space: normal;
+    }
+
+    /* ── Player controls ── */
+    /* Desktop (from 1100px): one centred row of icon buttons; narrower screens split it in two rows below. */
+    .player-controls {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .control-group { display: contents; }
+
+    .player-controls .ui-button {
+      flex: 0 1 auto;
+      min-width: var(--control-md);
+      padding: 0 14px;
+    }
+
+    .player-controls .player-nav { flex: 0 0 var(--control-md); padding: 0; }
+    .player-nav .button-label { display: none; }
+
+    /* Play/Pause is icon-only (the name is aria-label + title) and a little wider than its neighbours. */
+    .player-controls .player-play { min-width: 68px; padding: 0 20px; }
+    .player-play .button-icon { width: 22px; height: 22px; }
+    .player-play .button-icon svg { fill: currentcolor; }
+
+    .control-select {
+      position: relative;
+      display: flex;
+      flex: 0 1 auto;
       min-width: 0;
     }
+
+    .control-select .ui-select {
+      width: 100%;
+      min-width: 78px;
+      min-height: var(--control-md);
+      padding: 0 32px 0 14px;
+      border-radius: var(--radius-md);
+      font: 650 14px / 1 var(--app-ui-font);
+    }
+
+    @media (hover: hover) {
+      .control-select .ui-select:hover:not(:disabled) {
+        border-color: var(--color-interactive-border);
+        background-color: var(--color-control-background-hover);
+      }
+    }
+
+    /* ── Media ── */
+    .media-frame-slot { min-width: 0; }
 
     .widget-frame {
       position: relative;
       isolation: isolate;
-      width: 100%;
-      min-height: 260px;
-      min-width: 200px;
-      background: var(--color-media-canvas);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
       display: grid;
+      width: 100%;
+      min-width: 200px;
+      min-height: 260px;
       place-items: stretch;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-media-canvas);
     }
 
     .youglish-player,
@@ -218,7 +483,13 @@
       min-height: 260px;
       border: 0;
     }
-    .youglish-player[hidden] { display: none; }
+
+    /* Placeholder while the YouGlish script has not mounted its widget yet. */
+    #yg-widget-0:empty {
+      min-height: 260px;
+      background: linear-gradient(90deg, var(--color-surface-subtle), var(--color-overlay-strong), var(--color-surface-subtle));
+      background-size: 220% 100%;
+    }
 
     .video-restore-banner {
       position: absolute;
@@ -235,10 +506,10 @@
       min-height: 52px;
       padding: 12px 18px;
       border: 1px solid var(--color-border-strong);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--color-sticky-background);
       color: var(--color-text-primary);
-      box-shadow: 0 8px 24px var(--color-interactive-shadow);
+      box-shadow: var(--shadow-soft);
       backdrop-filter: blur(10px);
       pointer-events: none;
       font-size: clamp(16px, 2.4vw, 22px);
@@ -252,7 +523,7 @@
       height: 20px;
       flex: 0 0 auto;
       border: 3px solid var(--color-border);
-      border-top-color: var(--accent-2);
+      border-top-color: var(--color-interactive-link);
       border-radius: 50%;
       animation: restore-spin .8s linear infinite;
     }
@@ -262,971 +533,225 @@
       .video-restore-banner::before { animation: none; }
     }
 
-    .source-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 9px;
-      padding-bottom: 9px;
-      border-bottom: 1px solid var(--color-border);
-    }
-    .source-row > span {
-      color: var(--color-label);
-      font-size: 11px;
-      font-weight: 750;
-      letter-spacing: .09em;
-      text-transform: uppercase;
-    }
-
-    body.full-video-mode .source-row,
-    body.full-video-mode .video-navigation,
-    body.full-video-mode #replayBtn,
-    body.full-video-mode #exampleTools,
-    body.full-video-mode #currentSection,
-    body.full-video-mode .toolbar,
-    body.full-video-mode .progress,
-    body.full-video-mode #phraseList,
-    body.full-video-mode .add-box,
-    body.full-video-mode .state-box,
-    body.full-video-mode footer {
-      display: none !important;
-    }
-
-    body.full-video-mode .sticky-stage {
-      position: relative;
-      top: auto;
-    }
-
     .tatoeba-player {
+      display: grid;
       min-height: 260px;
       padding: 22px;
+      align-content: center;
+      gap: 16px;
       background:
         radial-gradient(circle at 90% 15%, var(--color-brand-soft), transparent 34%),
         var(--color-provider-background);
-      display: grid;
-      align-content: center;
-      gap: 15px;
     }
-    .tatoeba-player[hidden] { display: none; }
-    .tatoeba-kicker {
-      color: var(--color-label);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-    }
+
     .tatoeba-sentence {
       max-width: 760px;
-      font-size: clamp(23px, 5vw, 36px);
+      font-size: clamp(22px, 5vw, 34px);
       font-weight: 720;
-      line-height: 1.2;
+      line-height: 1.22;
       overflow-wrap: anywhere;
     }
+
     .tatoeba-timeline {
       appearance: none;
       display: block;
       width: 100%;
-      height: 20px;
+      height: 24px;
       margin: 0;
-      padding: 6px 0;
+      padding: 0;
       border: 0;
-      border-radius: 999px;
       background: transparent;
       cursor: pointer;
     }
     .tatoeba-timeline::-webkit-slider-runnable-track {
-      height: 7px;
-      border-radius: 999px;
-      background: linear-gradient(to right, var(--accent) var(--progress, 0%), var(--color-range-track) var(--progress, 0%));
+      height: 8px;
+      border: 1px solid var(--color-control-border);
+      border-radius: var(--radius-pill);
+      background: linear-gradient(to right, var(--color-interactive) var(--progress, 0%), var(--color-range-track) var(--progress, 0%));
     }
     .tatoeba-timeline::-moz-range-track {
-      height: 7px;
-      border-radius: 999px;
-      background: linear-gradient(to right, var(--accent) var(--progress, 0%), var(--color-range-track) var(--progress, 0%));
+      height: 8px;
+      border: 1px solid var(--color-control-border);
+      border-radius: var(--radius-pill);
+      background: linear-gradient(to right, var(--color-interactive) var(--progress, 0%), var(--color-range-track) var(--progress, 0%));
     }
     .tatoeba-timeline::-webkit-slider-thumb {
       appearance: none;
-      width: 14px;
-      height: 14px;
-      margin-top: -3.5px;
-      border: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: -7px;
+      border: 3px solid var(--color-surface-raised);
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--color-interactive);
+      box-shadow: var(--shadow-soft);
+      transition: transform var(--duration-fast) var(--ease-out);
     }
     .tatoeba-timeline::-moz-range-thumb {
       width: 14px;
       height: 14px;
-      border: 0;
+      border: 3px solid var(--color-surface-raised);
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--color-interactive);
+      box-shadow: var(--shadow-soft);
     }
+    .tatoeba-timeline:active::-webkit-slider-thumb { transform: scale(1.15); }
+
     .tatoeba-meta {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .tatoeba-meta a { color: var(--color-link); }
-
-    .player-controls {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 4px;
-      margin-top: 0;
-      padding: 6px;
-      border: 1px solid var(--color-border);
-      border-radius: 16px;
-      background: var(--color-surface);
-      box-shadow: inset 0 1px 0 var(--color-overlay-soft), var(--shadow-soft);
-    }
-
-    .control-group {
-      display: contents;
-    }
-
-    .caption-navigation-status {
-      display: block;
-      margin: 6px 2px 0;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.35;
-      min-height: 15px;
-    }
-
-    .caption-navigation[hidden],
-    .caption-navigation-status[hidden] {
-      display: none;
-    }
-
-    .control-group button:disabled,
-    .caption-navigation button:disabled {
-      cursor: not-allowed;
-      background: var(--color-action-disabled-background);
-      color: var(--color-action-disabled-text);
-      opacity: .64;
-    }
-
-    .player-controls button {
-      display: inline-flex;
-      flex: 1 1 0;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      min-width: 0;
-      min-height: 44px;
-      padding: 8px 5px;
-      border: 1px solid var(--color-control-border);
-      border-radius: 11px;
-      background: var(--color-control-background);
-      color: var(--color-action-secondary-text);
-      font-size: 13px;
-      font-weight: 650;
-      white-space: nowrap;
-      transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
-    }
-
-    .button-icon {
-      display: inline-flex;
-      flex: 0 0 auto;
-      align-items: center;
-      justify-content: center;
-      width: 17px;
-      height: 17px;
-    }
-
-    .button-icon svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-      fill: none;
-      stroke: currentColor;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-width: 1.8;
-    }
-
-    .button-label {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .player-controls .button-label { display: none; }
-
-    .player-controls button:hover:not(:disabled) {
-      border-color: var(--color-border-strong);
-      background: var(--color-control-background-hover);
-      color: var(--text);
-    }
-
-    .player-controls button:active:not(:disabled) { transform: scale(.96); }
-
-    #repeatCaptionBtn[aria-pressed="true"] {
-      border-color: var(--color-interactive-border);
-      background: var(--color-interactive-surface);
-      color: var(--color-on-interactive);
-      box-shadow: inset 0 1px 0 var(--color-overlay-strong), var(--shadow-soft);
-    }
-
-    .example-tools {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 4px;
-      margin-top: 9px;
-      padding: 6px;
-      border: 1px solid var(--color-border);
-      border-radius: 16px;
-      background: var(--color-surface);
-      box-shadow: inset 0 1px 0 var(--color-overlay-soft), var(--shadow-soft);
-    }
-
-    .example-tools[hidden] { display: none; }
-
-    .example-settings {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 4px;
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    .example-mode {
-      display: flex;
-      min-width: 0;
-    }
-
-    .example-settings .segmented {
-      gap: 3px;
-      padding: 0;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
-    }
-
-    .example-settings .segmented button {
-      flex: 1 1 0;
-      min-width: 0;
-      min-height: 44px;
-      padding-left: 7px;
-      padding-right: 7px;
-      border: 1px solid var(--color-control-border);
-      border-radius: 11px;
-      background: var(--color-control-background);
-      color: var(--color-action-secondary-text);
-      font-size: 13px;
-      font-weight: 650;
-      white-space: nowrap;
-    }
-
-    .example-settings .segmented button:hover:not(:disabled) {
-      border-color: var(--color-border-strong);
-      background: var(--color-control-background-hover);
-      color: var(--color-text-primary);
-    }
-
-    .example-settings .segmented button.active {
-      border-color: var(--color-interactive-border);
-      background: var(--color-interactive-soft-hover);
-      color: var(--color-interactive);
-      box-shadow: inset 0 1px 0 var(--color-overlay-soft);
-    }
-
-    .save-example-btn {
-      min-width: 118px;
-      border: 1px solid var(--color-control-border);
-      border-radius: 11px;
-      background: var(--color-control-background);
-      color: var(--color-action-secondary-text);
-      box-shadow: none;
-      font-size: 13px;
-      font-weight: 650;
-    }
-
-    .save-example-btn:hover:not(:disabled) {
-      border-color: var(--color-border-strong);
-      background: var(--color-control-background-hover);
-      color: var(--color-text-primary);
-    }
-
-    .example-actions {
-      display: flex;
-      flex-wrap: nowrap;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 4px;
-      max-width: 430px;
-      padding-left: 4px;
-      border-left: 1px solid var(--color-border);
-    }
-
-    .example-actions button {
-      min-width: 118px;
-    }
-
-    .example-count {
-      display: inline-grid;
-      min-width: 20px;
-      height: 20px;
-      margin-left: 4px;
-      padding: 0 5px;
-      place-items: center;
-      border-radius: 999px;
-      background: var(--color-overlay-soft);
-      font-size: 11px;
-    }
-
-    .save-example-btn.saved {
-      border-color: var(--color-interactive-border);
-      background: var(--color-interactive-soft-hover);
-      color: var(--color-interactive);
-    }
-
-    .save-example-btn:disabled,
-    .example-actions button:disabled,
-    .example-mode button:disabled {
-      cursor: not-allowed;
-      border-color: var(--color-control-border);
-      background: var(--color-action-disabled-background);
-      color: var(--color-action-disabled-text);
-      opacity: .72;
-    }
-
-    .example-message {
-      min-height: 18px;
-      margin-top: 5px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .example-message:empty { display: none; }
-    .example-message.error { color: var(--danger); }
-
-    .slow-playback-btn[aria-pressed="true"] {
-      border-color: var(--color-interactive-border) !important;
-      background: var(--color-interactive-soft-hover) !important;
-      color: var(--color-interactive);
-      box-shadow: inset 0 1px 0 var(--color-overlay-soft);
-    }
-
-    .control-select {
-      position: relative;
-      display: flex;
-      flex: 1 1 0;
-      min-width: 0;
-    }
-
-    .control-select select {
-      appearance: none;
-      width: 100%;
-      min-width: 0;
-      min-height: 44px;
-      padding: 8px 5px;
-      border: 1px solid var(--color-control-border);
-      border-radius: 11px;
-      background: var(--color-control-background);
-      color: var(--color-action-secondary-text);
-      font-size: 12px;
-      font-weight: 700;
-      text-align: center;
-      text-align-last: center;
-      cursor: pointer;
-    }
-
-    .control-select:hover select {
-      border-color: var(--color-border-strong);
-      background: var(--color-control-background-hover);
-      color: var(--color-text-primary);
-    }
-
-    .control-select[hidden] { display: none; }
-
-    .status {
-      margin-top: 8px;
-      min-height: 22px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .status.error { color: var(--danger); }
-    .status:not(.error),
-    .caption-navigation-status { display: none; }
-
-    .caption-box {
-      margin-top: 8px;
-      padding: 12px;
-      background: var(--panel);
-      border: 1px solid var(--color-card-border);
-      border-radius: 14px;
-    }
-
-    .caption-label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-      color: var(--color-label);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .caption-text {
-      min-height: 32px;
-      font-size: clamp(18px, 5vw, 24px);
-      line-height: 1.55;
-      overflow-wrap: anywhere;
-      user-select: text;
-    }
-
-    .caption-word {
-      display: inline;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: color .15s ease, background .15s ease;
-    }
-    .caption-word:hover,
-    .caption-word:focus-visible {
-      background: var(--color-interactive-soft-hover);
-      color: var(--accent-2);
-      outline: none;
-    }
-    .caption-word.query-word {
-      color: var(--accent-2);
-      text-decoration: underline;
-      text-decoration-color: var(--color-interactive-border);
-      text-underline-offset: 3px;
-    }
-
-    .caption-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 9px;
-    }
-    .caption-actions[hidden] { display: none; }
-    .selection-preview {
-      flex: 1 0 100%;
-      color: var(--muted);
-      font-size: 13px;
-      overflow-wrap: anywhere;
-    }
-    .selection-message {
-      min-height: 20px;
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .selection-message.ok { color: var(--ok); }
-    .selection-message.error { color: var(--danger); }
-
-    .translation-box {
-      display: none;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--line);
-    }
-    .translation-box.visible { display: block; }
-    .translation-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-    .translation-source {
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .translation-head button { padding: 5px 9px; font-size: 12px; }
-    .translation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .translation-result {
-      font-size: 17px;
-      color: var(--ok);
-    }
-    .translation-result.loading { color: var(--muted); }
-    .translation-result.error { color: var(--danger); }
-
-    .no-results {
-      display: none;
-      margin-top: 8px;
-      padding: 10px 12px;
-      background: var(--color-danger-background);
-      border: 1px solid var(--color-danger-border);
-      border-radius: 12px;
-      font-size: 14px;
-    }
-    .no-results.visible { display: block; }
-    .no-results button { margin-top: 8px; }
-
-    .current {
-      padding: 18px 4px 10px;
-      scroll-margin-top: 330px;
-    }
-
-    .current-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .current-label {
-      color: var(--muted);
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .phrase-main {
-      font-size: clamp(26px, 7vw, 38px);
-      font-weight: 700;
-      letter-spacing: -.02em;
-      line-height: 1.16;
-      min-height: 44px;
-    }
-
-    .phrase-pattern {
-      margin-top: 12px;
-      font-size: 19px;
-      color: var(--color-text-primary);
-      line-height: 1.9;
-    }
-
-    .sound-block {
-      position: relative;
-      display: inline-block;
-      margin-right: .24em;
-      padding-bottom: .22em;
-    }
-
-    .sound-block::after {
-      content: "";
-      position: absolute;
-      left: 4%;
-      right: 4%;
-      bottom: .02em;
-      height: .34em;
-      border-bottom: 1px solid var(--color-border-strong);
-      border-radius: 0 0 50% 50%;
-      pointer-events: none;
-    }
-
-    .ipa {
-      margin-top: 10px;
-      color: var(--color-phonetic);
-      font-family: var(--app-phonetic-font);
-      font-size: clamp(18px, 5vw, 24px);
-      overflow-wrap: anywhere;
-    }
-
-    .blind-hidden {
-      display: none !important;
-    }
-
-    .blind-placeholder {
-      display: none;
-      padding: 20px 0 8px;
-      color: var(--muted);
-      font-size: 15px;
-    }
-    .blind-placeholder.visible { display: block; }
-
-    .toolbar {
-      display: grid;
-      gap: 10px;
-      padding: 12px 0 14px;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .row > * { flex: 0 0 auto; }
-
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    .grow {
-      flex: 1 1 220px !important;
-      min-width: 0;
-    }
-
-    select, input[type="text"] {
-      min-height: 42px;
-      padding: 9px 11px;
-    }
-
-    .segmented {
-      display: inline-flex;
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: 14px;
-      padding: 4px;
-      gap: 4px;
-      box-shadow: inset 0 1px 0 var(--color-overlay-soft);
-    }
-    fieldset.segmented {
-      min-inline-size: 0;
-      margin: 0;
-    }
-    .segmented button {
-      min-height: 34px;
-      border: 0;
-      border-radius: 10px;
-      background: var(--color-control-background);
       color: var(--color-text-secondary);
-      padding: 6px 11px;
-      transition: background .15s ease, color .15s ease, box-shadow .15s ease;
-    }
-    .segmented button.active {
-      background: var(--color-interactive-soft-hover);
-      color: var(--color-interactive);
-      box-shadow: var(--shadow-soft), inset 0 1px 0 var(--color-overlay-soft);
-    }
-
-    .toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 42px;
-      padding: 8px 10px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--panel);
-      user-select: none;
-    }
-    .toggle input {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--accent);
-    }
-
-    .progress {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 16px 2px 8px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .progress-bar {
-      height: 7px;
-      flex: 1;
-      background: var(--panel-2);
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-    }
-    .progress-fill {
-      height: 100%;
-      width: 0;
-      background: var(--accent);
-      transition: width .2s ease;
-    }
-
-    .list {
-      display: grid;
-      gap: 8px;
-      padding-top: 8px;
-    }
-
-    .phrase-card {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: start;
-      padding: 13px;
-      background: var(--panel);
-      border: 1px solid var(--color-card-border);
-      border-radius: var(--radius);
-    }
-
-    .phrase-card.selected {
-      border-color: var(--color-interactive-border);
-      box-shadow: inset 3px 0 0 var(--color-interactive);
-    }
-
-    .phrase-card.done {
-      opacity: .58;
-    }
-
-    .phrase-hit {
-      min-width: 0;
-      cursor: pointer;
-    }
-
-    .phrase-q {
-      color: var(--color-card-title);
-      font-size: 17px;
-      font-weight: 650;
-      overflow-wrap: anywhere;
-    }
-
-    .phrase-card .phrase-pattern {
-      margin-top: 7px;
-      font-size: 14px;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-
-    .phrase-card .ipa {
-      margin-top: 5px;
-      font-size: 13px;
-      color: var(--color-phonetic);
-    }
-
-    .meta {
-      margin-top: 7px;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      color: var(--muted);
       font-size: 12px;
+      font-variant-numeric: tabular-nums;
     }
-
-    .tag {
-      border: 1px solid var(--color-tag-border);
-      border-radius: 999px;
-      background: var(--color-tag-background);
-      color: var(--color-tag-text);
-      padding: 2px 7px;
-    }
-
-    .card-actions {
-      display: grid;
-      gap: 7px;
-    }
-
-    .heard {
-      min-width: 78px;
-      font-size: 13px;
-    }
-    .heard.on {
-      border-color: var(--color-success-border);
-      color: var(--ok);
-      background: var(--color-success-background);
-    }
-
-    .delete {
-      color: var(--color-danger);
-      font-size: 12px;
-    }
-
-    .add-box, .state-box {
-      margin-top: 18px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--panel);
-    }
-
-    .section-title {
-      margin: 0 0 10px;
-      font-size: 16px;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 13px;
-      margin: 8px 0 0;
-    }
-
-    footer {
-      margin-top: 24px;
-      padding: 18px 4px 0;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    footer a {
+    .tatoeba-meta a {
       color: var(--color-link);
-      margin-right: 14px;
+      text-underline-offset: .2em;
     }
 
-    .file-input {
-      display: none;
+    /* ── Footer: provider terms stay visible on every page load ── */
+    .trainer-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 20px;
+      margin-top: 24px;
+      padding-top: 6px;
+      border-top: 1px solid var(--color-border);
+      font-size: 13px;
     }
 
-    .viewer-mode .app { width: min(1240px, 100%); }
-    .viewer-mode .sticky-stage {
-      margin-left: -12px;
-      margin-right: -12px;
+    .trainer-footer a {
+      display: inline-flex;
+      min-height: var(--control-md);
+      align-items: center;
+      color: var(--color-text-secondary);
+      text-decoration: underline;
+      text-underline-offset: .2em;
+      transition: color var(--duration-fast) var(--ease-out);
     }
-    .viewer-mode .current,
-    .viewer-mode .toolbar,
-    .viewer-mode .progress,
-    .viewer-mode .list,
-    .viewer-mode .add-box,
-    .viewer-mode .state-box,
-    .viewer-mode footer { display: none !important; }
+
+    @media (hover: hover) {
+      .trainer-footer a:hover { color: var(--color-text-primary); }
+    }
+
+    /* ── Motion (skipped entirely for prefers-reduced-motion: reduce) ── */
+    @keyframes trainer-enter {
+      from { opacity: .3; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes trainer-mark { from { background-size: 0% 100%; } }
+    @keyframes trainer-pulse { 50% { opacity: .45; } }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .caption-text.is-entering,
+      .tatoeba-sentence.is-entering { animation: trainer-enter var(--duration-slow) var(--ease-out) both; }
+      .caption-word.query-word { animation: trainer-mark var(--duration-slow) var(--ease-out) 120ms both; }
+      .caption-actions:not([hidden]),
+      .translation-box.visible { animation: ui-rise var(--duration-base) var(--ease-out) both; }
+      .translation-result.loading,
+      .ui-button[aria-busy="true"] .button-icon { animation: trainer-pulse 1.2s ease-in-out infinite; }
+      #yg-widget-0:empty { animation: ui-shimmer 1.4s linear infinite; }
+      .status.error { animation: ui-rise var(--duration-base) var(--ease-out) both; }
+    }
+
+    /* A failed load is not "still loading": stop the placeholder shimmer once an error is shown. */
+    .trainer-stage:has(.status.error) #yg-widget-0:empty { animation: none; }
+
+    /* ── Layout: tablets and phones ── */
+    /* Below 1100px the bar is two rows: transport (video < caption > play > caption > video) above the tools. */
+    @media (max-width: 1099px) {
+      .player-controls { flex-wrap: wrap; justify-content: stretch; gap: 0 8px; }
+      .player-controls::before { content: ""; order: 6; flex: 0 0 100%; height: 0; }
+      .player-controls .ui-button,
+      .control-select { flex: 1 1 auto; }
+      .player-controls .ui-button { --ui-font-size: 13px; padding: 0 8px; gap: 6px; }
+      .player-controls .player-nav { flex: 1 1 0; }
+      .player-controls .player-play { flex: 1.6 1 0; min-width: 64px; padding: 0 8px; }
+      #prevVideoBtn { order: 1; }
+      #prevCaptionBtn { order: 2; }
+      #playPauseBtn { order: 3; }
+      #nextCaptionBtn { order: 4; }
+      #nextVideoBtn { order: 5; }
+      #replayBtn { order: 7; }
+      #repeatCaptionBtn { order: 8; }
+      #accentControl { order: 9; }
+      #slowPlaybackBtn { order: 10; }
+      #replayBtn, #repeatCaptionBtn, #accentControl, #slowPlaybackBtn { margin-top: 6px; }
+      .control-select .ui-select { min-width: 0; padding: 0 26px 0 12px; font-size: 13px; }
+    }
 
     @media (max-width: 760px) {
-      .sticky-stage {
-        position: static;
-        display: block;
-        margin-left: -8px;
-        margin-right: -8px;
-        padding-left: 8px;
-        padding-right: 8px;
-      }
-      .learning-workspace,
-      .media-panel {
-        border-radius: 16px;
-      }
-      .learning-workspace {
-        display: flex;
-        flex-direction: column;
-        padding: 8px;
-      }
-      .source-row {
-        order: 1;
-        margin-bottom: 6px;
-        padding-bottom: 6px;
-      }
-      .example-tools {
-        order: 2;
-        margin-top: 0;
-      }
+      .app { padding-bottom: 64px; }
+      .learning-workspace { padding: 12px; }
+      .media-panel { padding: 6px; }
+      .source-row { order: 1; }
+      .example-tools { order: 2; }
       .example-message { order: 3; }
-      .caption-box {
-        order: 4;
-        margin-top: 6px;
-        padding: 10px;
-      }
-      .caption-label { margin-bottom: 5px; }
+      .caption-box { order: 4; padding: 12px 14px; }
       .status { order: 5; }
       .no-results { order: 6; }
       .caption-navigation-status { order: 7; }
-      .player-controls {
-        order: 8;
-        margin-top: 6px;
-      }
-      .media-panel {
-        display: flex;
-        flex-direction: column;
-        margin-top: 4px;
-        padding: 6px;
-      }
-      #sourceSwitch button,
-      .example-settings .segmented button {
-        min-height: 44px;
-      }
-      .example-tools { grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; }
-      .example-settings { display: grid; grid-template-columns: minmax(0, 1fr); }
-      .example-settings .segmented { display: grid; grid-template-columns: 1fr 1fr; }
-      .save-example-btn { width: auto; }
-      .example-actions { max-width: none; }
+      .player-controls { order: 8; }
+      /* Slow is icon-only on phones (aria-label + title stay; the pressed ring shows the state). */
+      .slow-playback-btn .button-label { display: none; }
     }
 
+    /* Phones: a compact workspace so the video starts as high as possible. */
     @media (max-width: 560px) {
       .app { padding-left: 8px; padding-right: 8px; }
+      .viewer-header { gap: 10px; padding: 6px 0; }
+      .trainer-stage { gap: 8px; padding-top: 0; }
+      .learning-workspace { padding: 8px; gap: 8px; }
+      .source-row { padding-bottom: 0; border-bottom: 0; }
+      .caption-box { padding: 8px 12px 10px; }
+      .caption-label { flex-wrap: nowrap; margin-bottom: 4px; }
+      .caption-label > span:first-child { flex: 0 0 auto; }
+      .caption-label > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .widget-frame, #youglishWidgetHost { min-height: 205px; }
       #youglishWidgetHost iframe { min-height: 205px; }
       .tatoeba-player { min-height: 205px; padding: 18px; }
-      .player-controls { gap: 3px; padding: 4px; }
-      .player-controls .button-label { display: none; }
-      .player-controls button { padding-left: 3px; padding-right: 3px; }
-      .player-controls .button-icon { width: 18px; height: 18px; }
-      .control-select select { padding: 8px 3px; font-size: 10.5px; }
-      .example-tools {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 6px;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-      }
-      .example-settings {
-        display: block;
-        grid-template-columns: none;
-        width: 100%;
-      }
-      .example-settings .segmented {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: 100%;
-      }
-      .example-settings .button-label { display: inline; }
-      .example-actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-        max-width: none;
-        padding: 0;
-        border: 0;
-      }
-      .example-actions:has(.media-full-video-btn[hidden]) { grid-template-columns: minmax(0, 1fr); }
-      .example-actions .button-label { display: inline; }
-      .example-settings .segmented button,
-      .example-actions button {
-        width: 100%;
-        min-width: 0;
-        min-height: 44px;
-        padding: 8px 6px;
-        border-radius: 11px;
-        justify-content: center;
-      }
-      .save-example-btn {
-        border: 1px solid var(--color-border);
-        background: var(--color-surface);
-        color: var(--color-text-secondary);
-        box-shadow: none;
-      }
-      .media-full-video-btn {
-        margin-left: 0;
-        border: 1px solid var(--color-interactive-border);
-        background: var(--color-interactive-soft);
-        color: var(--color-interactive);
-        box-shadow: none;
-      }
-      .media-full-video-btn:hover:not(:disabled) {
-        border-color: var(--color-interactive-border);
-        background: var(--color-interactive-soft-hover);
-        filter: none;
-        transform: none;
-        box-shadow: none;
-      }
-      .phrase-card {
-        grid-template-columns: minmax(0, 1fr);
-      }
-      .card-actions {
-        grid-template-columns: 1fr auto;
-      }
-      .heard { width: 100%; }
+      .segmented .ui-button { padding: 0 12px; }
+    }
+
+    /* Very narrow phones: Replay and Repeat keep only their icons so row 2 stays on one line. */
+    @media (max-width: 359px) {
+      #replayBtn .button-label, #repeatCaptionBtn .button-label { display: none; }
+    }
+
+    /*
+     * Phones: All|Saved fills the first row; Save clip and Continue in video share the second in two equal
+     * columns (Save clip takes the whole row while Continue in video is hidden).
+     */
+    @media (max-width: 560px) {
+      .example-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .example-settings { grid-column: 1 / -1; }
+      .example-mode { display: flex; width: 100%; }
+      .example-actions { display: contents; }
+      .example-actions .ui-button { min-width: 0; padding: 0 10px; gap: 6px; }
+      .example-actions:has(#watchFullVideoBtn[hidden]) #saveExampleBtn { grid-column: 1 / -1; }
+      .caption-actions .ui-button { flex: 1 1 0; padding: 0 10px; }
+    }
+
+    /* The longer Continue in video label gets a little more room than Save clip on the narrowest phones. */
+    @media (max-width: 374px) {
+      .example-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+    }
+
+    /* At 320px the two example buttons keep just their labels. */
+    @media (max-width: 339px) {
+      .example-actions .button-icon { display: none; }
     }
   </style>
   <link rel="stylesheet" href="/app-theme.css" />
+  <link rel="stylesheet" href="/ui.css" />
   <link rel="stylesheet" href="/site-navigation.css" />
   <link rel="stylesheet" href="/feedback-widget.css" />
   <script src="/theme-controller.js"></script>
   <script src="/feedback-widget.js" defer></script>
 </head>
-<body class="viewer-mode">
+<body>
   <header class="site-navigation">
     <div class="site-navigation-inner">
       <div class="site-brand-context">
@@ -1236,11 +761,26 @@
         <span class="site-beta-badge">Beta</span>
       </div>
       <nav class="site-primary-links" aria-label="Primary navigation">
-        <a class="site-primary-link" href="/library">Library</a>
-        <a class="site-primary-link" href="/practice" aria-current="page">Practice</a>
-        <a class="site-primary-link" href="/chat">AI Chat</a>
-        <a class="site-primary-link" href="/videos">Videos</a>
-        <a class="site-primary-link" href="/settings">Settings</a>
+        <a class="site-primary-link" href="/library">
+          <span aria-hidden="true" class="site-primary-link-icon"><svg aria-hidden="true" class="site-primary-link-svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"></path><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"></path></svg></span>
+          <span class="site-primary-link-label">Library</span>
+        </a>
+        <a class="site-primary-link" href="/practice" aria-current="page">
+          <span aria-hidden="true" class="site-primary-link-icon"><svg aria-hidden="true" class="site-primary-link-svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"></path><rect height="6" rx="1.5" width="4" x="3" y="14"></rect><rect height="6" rx="1.5" width="4" x="17" y="14"></rect></svg></span>
+          <span class="site-primary-link-label">Practice</span>
+        </a>
+        <a class="site-primary-link" href="/chat">
+          <span aria-hidden="true" class="site-primary-link-icon"><svg aria-hidden="true" class="site-primary-link-svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.4-4.3A7.5 7.5 0 1 1 20 11.5z"></path></svg></span>
+          <span class="site-primary-link-label">AI Chat</span>
+        </a>
+        <a class="site-primary-link" href="/videos">
+          <span aria-hidden="true" class="site-primary-link-icon"><svg aria-hidden="true" class="site-primary-link-svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><rect height="14" rx="3" width="18" x="3" y="5"></rect><path d="m10 9.5 5 2.5-5 2.5z"></path></svg></span>
+          <span class="site-primary-link-label">Videos</span>
+        </a>
+        <a class="site-primary-link" href="/settings">
+          <span aria-hidden="true" class="site-primary-link-icon"><svg aria-hidden="true" class="site-primary-link-svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg></span>
+          <span class="site-primary-link-label">Settings</span>
+        </a>
       </nav>
       <div class="site-account">
         <a aria-label="Open source on GitHub" class="site-github-link" href="https://github.com/koreyba/Unmumble" target="_blank" rel="noreferrer">
@@ -1248,53 +788,56 @@
             <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.084-.729.084-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path>
           </svg>
         </a>
-        <button aria-label="Change color theme" aria-pressed="false" class="theme-toggle" data-theme-toggle type="button">
-          <span aria-hidden="true" class="theme-toggle-sun">☀</span>
-          <span aria-hidden="true" class="theme-toggle-moon">☾</span>
+        <button aria-label="Change color theme" aria-pressed="false" class="theme-toggle ui-button ui-button--ghost ui-button--icon" data-theme-toggle type="button">
+          <svg aria-hidden="true" class="theme-toggle-sun" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"></path></svg>
+          <svg aria-hidden="true" class="theme-toggle-moon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg>
         </button>
         <span id="accountEmail" class="site-account-name" hidden></span>
-        <a id="loginLink" class="site-account-link" href="/login">Sign in with Google</a>
+        <a id="loginLink" class="site-account-link ui-button ui-button--sm" href="/login" aria-label="Sign in with Google"><span class="site-signin-full">Sign in with Google</span><span class="site-signin-short" aria-hidden="true">Sign in</span></a>
       </div>
     </div>
   </header>
   <main class="app">
     <header class="viewer-header">
-      <button id="backBtn" class="back-button" type="button">← Back</button>
+      <button id="backBtn" class="back-button ui-button" type="button">
+        <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M19 12H5M11 18l-6-6 6-6" /></svg></span>
+        <span class="button-label">Back</span>
+      </button>
       <div class="viewer-heading">
         <span>Now listening</span>
-        <strong id="viewerPhrase"></strong>
+        <h1 id="viewerPhrase" class="viewer-phrase">Loading phrase…</h1>
       </div>
     </header>
 
-    <section class="sticky-stage" id="playerTop">
-      <div class="learning-workspace">
+    <section class="trainer-stage">
+      <div class="learning-workspace ui-card">
         <div class="source-row">
           <span>Phrase example</span>
           <fieldset id="sourceSwitch" class="segmented" aria-label="Phrase example">
-            <button type="button" data-source="tatoeba">Tatoeba</button>
-            <button type="button" data-source="youglish">YouGlish</button>
+            <button class="ui-button ui-button--ghost" type="button" data-source="tatoeba">Tatoeba</button>
+            <button class="ui-button ui-button--ghost" type="button" data-source="youglish">YouGlish</button>
           </fieldset>
         </div>
 
         <div id="exampleTools" class="example-tools" hidden>
           <div class="example-settings">
             <fieldset id="exampleMode" class="segmented example-mode" aria-label="Example mode">
-              <button type="button" data-example-mode="all" aria-label="All examples" title="All examples">
+              <button class="ui-button ui-button--ghost" type="button" data-example-mode="all" aria-label="All examples" title="All examples">
                 <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 6h14M5 12h14M5 18h14" /></svg></span>
                 <span class="button-label">All</span>
               </button>
-              <button type="button" data-example-mode="saved" aria-label="Saved examples" title="Saved examples">
+              <button class="ui-button ui-button--ghost" type="button" data-example-mode="saved" aria-label="Saved examples" title="Saved examples">
                 <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 4h12v16l-6-3-6 3V4z" /></svg></span>
                 <span class="button-label">Saved</span> <span id="savedExampleCount" class="example-count">0</span>
               </button>
             </fieldset>
           </div>
           <div class="example-actions">
-            <button id="saveExampleBtn" class="save-example-btn" type="button" aria-label="Save current example" title="Save current example" disabled>
+            <button id="saveExampleBtn" class="save-example-btn ui-button" type="button" aria-label="Save current clip" title="Save current clip" disabled>
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3z" /></svg></span>
               <span class="button-label">Save clip</span>
             </button>
-            <button id="watchFullVideoBtn" class="media-full-video-btn" type="button" aria-label="Continue in video" title="Continue in video" disabled hidden>
+            <button id="watchFullVideoBtn" class="media-full-video-btn ui-button" type="button" aria-label="Continue in video" title="Continue in video" disabled hidden>
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m9 7 8 5-8 5V7zM4 4h16v16H4z" /></svg></span>
               <span class="button-label">Continue in video</span>
             </button>
@@ -1303,92 +846,91 @@
 
         <div id="exampleMessage" class="example-message" role="status"></div>
 
-        <div class="caption-box" aria-live="polite">
+        <div class="caption-box">
           <div class="caption-label">
             <span>Captions</span>
-            <span>click a word or select a phrase</span>
+            <span>Tap or click a word, or select a phrase</span>
           </div>
           <div id="captionText" class="caption-text">Captions will appear during playback.</div>
           <div id="selectionActions" class="caption-actions" hidden>
             <div id="selectionPreview" class="selection-preview"></div>
-            <button id="translateSelectionBtn" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 4h14M12 4v2M8 20l4-10 4 10M9.5 17h5M5 8h5M5 8c.7 4 3.1 6 7 7M19 8h-5" /></svg></span><span class="button-label">Translate</span></button>
-            <button id="listenSelectionBtn" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 9v6h4l5 4V5L9 9H5zM17 9.5a4 4 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" /></svg></span><span class="button-label">Listen</span></button>
-            <button id="addSelectionBtn" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="button-label">To Learn</span></button>
+            <button id="translateSelectionBtn" class="ui-button" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 4h14M12 4v2M8 20l4-10 4 10M9.5 17h5M5 8h5M5 8c.7 4 3.1 6 7 7M19 8h-5" /></svg></span><span class="button-label">Translate</span></button>
+            <button id="listenSelectionBtn" class="ui-button" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 9v6h4l5 4V5L9 9H5zM17 9.5a4 4 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" /></svg></span><span class="button-label">Listen</span></button>
+            <button id="addSelectionBtn" class="ui-button" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="button-label">To Learn</span></button>
           </div>
           <div id="selectionMessage" class="selection-message" role="status"></div>
           <div id="translationBox" class="translation-box">
             <div class="translation-head">
               <div id="translationSource" class="translation-source"></div>
-              <button id="clearTranslationBtn" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" /></svg></span><span class="button-label">Hide</span></button>
+              <button id="clearTranslationBtn" class="ui-button ui-button--ghost ui-button--sm" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" /></svg></span><span class="button-label">Hide</span></button>
             </div>
-            <div id="translationResult" class="translation-result"></div>
+            <div id="translationResult" class="translation-result" role="status"></div>
             <div class="translation-actions">
-              <button id="translationAddBtn" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="button-label">To Learn</span></button>
+              <button id="translationAddBtn" class="ui-button" type="button"><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="button-label">To Learn</span></button>
             </div>
           </div>
         </div>
 
         <output id="status" class="status" aria-live="polite">Preparing audio examples…</output>
-        <div id="noResults" class="no-results">
-          <div id="noResultsText"></div>
-          <button id="shorterBtn" type="button"></button>
+        <div id="noResults" class="no-results ui-notice ui-notice--warning">
+          <div id="noResultsText" class="ui-notice__body"></div>
+          <button id="shorterBtn" class="ui-button ui-button--sm" type="button"></button>
         </div>
         <span id="captionNavigationHint" class="caption-navigation-status">Exact navigation is available when the API provides timing.</span>
 
         <div id="playerControls" class="player-controls player-toolbar" aria-label="Player navigation and controls">
           <div id="captionNavigation" class="control-group caption-navigation" aria-label="Caption navigation" hidden>
-            <button id="prevCaptionBtn" type="button" aria-label="Previous caption" title="Previous caption" disabled>
+            <button id="prevCaptionBtn" class="player-nav ui-button" type="button" aria-label="Previous caption" title="Previous caption" disabled>
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m15 18-6-6 6-6" /></svg></span>
               <span class="button-label">Previous</span>
             </button>
-            <button id="nextCaptionBtn" type="button" aria-label="Next caption" title="Next caption" disabled>
+            <button id="nextCaptionBtn" class="player-nav ui-button" type="button" aria-label="Next caption" title="Next caption" disabled>
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m9 18 6-6-6-6" /></svg></span>
               <span class="button-label">Next</span>
             </button>
           </div>
           <div class="control-group video-navigation" aria-label="Video navigation">
-            <button id="prevVideoBtn" type="button" aria-label="Previous video" title="Previous video">
+            <button id="prevVideoBtn" class="player-nav ui-button" type="button" aria-label="Previous video" title="Previous video">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 5v14M18 5l-7 7 7 7" /></svg></span>
               <span class="button-label">Previous</span>
             </button>
-            <button id="nextVideoBtn" type="button" aria-label="Next video" title="Next video">
+            <button id="nextVideoBtn" class="player-nav ui-button" type="button" aria-label="Next video" title="Next video">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M18 5v14M6 5l7 7-7 7" /></svg></span>
               <span class="button-label">Next</span>
             </button>
           </div>
           <div class="control-group media-navigation" aria-label="Playback controls">
-            <button id="playPauseBtn" type="button" aria-label="Pause playback" title="Pause playback">
+            <button id="playPauseBtn" class="player-play ui-button ui-button--primary" type="button" aria-label="Pause playback" title="Pause playback">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M8 5v14M16 5v14" /></svg></span>
-              <span class="button-label">Pause</span>
             </button>
-            <button id="replayBtn" type="button" aria-label="Replay phrase" title="Replay phrase">
+            <button id="replayBtn" class="ui-button" type="button" aria-label="Replay phrase" title="Replay phrase">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v6h6" /></svg></span>
               <span class="button-label">Replay</span>
             </button>
-            <button id="repeatCaptionBtn" type="button" aria-label="Repeat current caption" title="Repeat current caption" aria-pressed="false" disabled hidden>
+            <button id="repeatCaptionBtn" class="ui-button" type="button" aria-label="Repeat current caption" title="Repeat current caption" aria-pressed="false" disabled hidden>
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m17 2 4 4-4 4M3 6h18M7 22l-4-4 4-4M21 18H3" /></svg></span>
               <span class="button-label">Repeat</span>
             </button>
           </div>
           <div class="control-group playback-settings" aria-label="Playback settings">
             <label id="accentControl" class="control-select" title="Accent">
-              <span class="visually-hidden">Accent</span>
-              <select id="accentSelect" aria-label="Accent">
+              <span class="ui-visually-hidden">Accent</span>
+              <select id="accentSelect" class="ui-select ui-select--control" aria-label="Accent">
                 <option value="">All</option>
                 <option value="us">US</option>
                 <option value="uk">UK</option>
                 <option value="aus">AUS</option>
               </select>
             </label>
-            <button id="slowPlaybackBtn" class="slow-playback-btn" type="button" aria-label="Slow playback" title="Slow playback" aria-pressed="false">
-              <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9.5 7.5c-3.2 0-5.8 2.4-5.8 5.5s2.6 5.5 5.8 5.5 5.8-2.4 5.8-5.5-2.6-5.5-5.8-5.5Z"/><path d="M15.1 11.1c.8-1.4 2.1-2.1 3.6-1.8 1.6.3 2.5 1.7 2.1 3.1-.4 1.3-1.6 2.1-3 1.8l-2.5-.5M7 18.2 5.7 21M12 18.2l1.2 2.3M4 12.2 1.8 11M7.3 10.3l4.3 5.4M11.6 10.3l-4.3 5.4"/></svg></span>
+            <button id="slowPlaybackBtn" class="slow-playback-btn ui-button" type="button" aria-label="Slow playback" title="Slow playback" aria-pressed="false">
+              <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span>
               <span class="button-label">Slow</span>
             </button>
           </div>
         </div>
       </div>
 
-      <aside class="media-panel" aria-label="Media example">
+      <aside class="media-panel ui-card" aria-label="Media example">
         <div id="mediaFrameSlot" class="media-frame-slot">
           <div id="widgetFrame" class="widget-frame">
           <div id="youglishPlayer" class="youglish-player">
@@ -1411,73 +953,7 @@
       </aside>
     </section>
 
-    <section class="current" id="currentSection">
-      <div class="current-head">
-        <div class="current-label">Current phrase</div>
-        <button id="revealBtn" type="button" aria-label="Reveal phrase" title="Reveal phrase" hidden>
-          <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" /></svg></span>
-          <span class="button-label">Reveal</span>
-        </button>
-      </div>
-
-      <div id="blindPlaceholder" class="blind-placeholder">Blind mode: listen first, then select “Reveal”.</div>
-
-      <div id="currentTextWrap">
-        <div id="currentQ" class="phrase-main"></div>
-        <div id="currentP" class="phrase-pattern"></div>
-        <div id="currentIpa" class="ipa"></div>
-      </div>
-    </section>
-
-    <section class="toolbar" aria-label="Settings">
-      <div class="row">
-        <select id="tagFilter" class="grow" aria-label="Reduction type filter"></select>
-        <label class="toggle">
-          <input id="hideDone" type="checkbox" />
-          Hide practiced
-        </label>
-      </div>
-
-      <div class="row">
-        <label class="toggle">
-          <input id="blindMode" type="checkbox" />
-          Blind mode
-        </label>
-
-        <button id="randomBtn" class="grow" type="button">Next random</button>
-      </div>
-    </section>
-
-    <div class="progress">
-      <span id="progressText">0 / 0</span>
-      <div class="progress-bar" aria-hidden="true">
-        <div id="progressFill" class="progress-fill"></div>
-      </div>
-    </div>
-
-    <section id="phraseList" class="list" aria-label="Phrase list"></section>
-
-    <section class="add-box">
-      <h2 class="section-title">Add your own phrase</h2>
-      <div class="row">
-        <label class="visually-hidden" for="customPhrase">Custom phrase</label>
-        <input id="customPhrase" class="grow" type="text" placeholder="For example: I should have told him" autocomplete="off" />
-        <button id="addPhraseBtn" type="button">Add</button>
-      </div>
-      <p class="hint">For custom phrases, transcription is not invented: only the text is saved and the whole phrase counts as one sound block.</p>
-    </section>
-
-    <section class="state-box">
-      <h2 class="section-title">State</h2>
-      <div class="row">
-        <button id="exportBtn" type="button">Download JSON</button>
-        <button id="importBtn" type="button">Upload file</button>
-        <input id="importFile" class="file-input" type="file" accept="application/json,.json" />
-      </div>
-      <p id="stateMessage" class="hint"></p>
-    </section>
-
-    <footer>
+    <footer class="trainer-footer">
       <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>
       <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>
     </footer>
@@ -1578,13 +1054,7 @@
     let LEGACY_STORAGE_KEYS = [...LEGACY_GUEST_TRAINER_STORAGE_KEYS];
     const DEFAULT_STATE = {
       version: 2,
-      done: [],
       accent: "us",
-      blind: false,
-      hideDone: false,
-      tag: "all",
-      custom: [],
-      selectedId: "base-0",
       source: "youglish",
       speed: 1,
       exampleMode: "all"
@@ -1593,7 +1063,6 @@
     let widget = null;
     let widgetReady = false;
     let youglishPlayerReady = false;
-    let blindRevealed = false;
     let currentQueryOverride = null;
     let currentCaptionRaw = "";
     let currentCaptionText = "";
@@ -1608,6 +1077,7 @@
     let currentYouglishRestoreAnchorElapsed = 0;
     let currentYouglishRestoreAnchorPlayingAt = null;
     let savedExamples = [];
+    let saveExampleBusy = false;
     let savedExampleIndex = 0;
     let isAuthenticated = false;
     let trainerReady = false;
@@ -1742,30 +1212,10 @@
       tatoebaTime: document.getElementById("tatoebaTime"),
       tatoebaAttribution: document.getElementById("tatoebaAttribution"),
       tatoebaAudio: document.getElementById("tatoebaAudio"),
-      currentQ: document.getElementById("currentQ"),
-      currentP: document.getElementById("currentP"),
-      currentIpa: document.getElementById("currentIpa"),
-      currentTextWrap: document.getElementById("currentTextWrap"),
-      blindPlaceholder: document.getElementById("blindPlaceholder"),
-      revealBtn: document.getElementById("revealBtn"),
-      tagFilter: document.getElementById("tagFilter"),
-      hideDone: document.getElementById("hideDone"),
-      blindMode: document.getElementById("blindMode"),
       accentControl: document.getElementById("accentControl"),
       accentSelect: document.getElementById("accentSelect"),
-      randomBtn: document.getElementById("randomBtn"),
-      phraseList: document.getElementById("phraseList"),
-      progressText: document.getElementById("progressText"),
-      progressFill: document.getElementById("progressFill"),
-      customPhrase: document.getElementById("customPhrase"),
-      addPhraseBtn: document.getElementById("addPhraseBtn"),
-      exportBtn: document.getElementById("exportBtn"),
-      importBtn: document.getElementById("importBtn"),
-      importFile: document.getElementById("importFile"),
-      stateMessage: document.getElementById("stateMessage"),
       accountEmail: document.getElementById("accountEmail"),
       loginLink: document.getElementById("loginLink"),
-      playerTop: document.getElementById("playerTop"),
       playerControls: document.getElementById("playerControls"),
       captionNavigation: document.getElementById("captionNavigation"),
       prevCaptionBtn: document.getElementById("prevCaptionBtn"),
@@ -1871,18 +1321,13 @@
       iconElement.dataset.icon = iconName;
     }
 
-    function setButton(button, label, iconName) {
-      setButtonLabel(button, label);
-      setButtonIcon(button, iconName);
-    }
-
     function renderPlaybackControl() {
       const isPlaying = state.source === "tatoeba"
         ? !el.tatoebaAudio.paused
         : playerState === 1;
       const action = isPlaying ? "Pause" : "Play";
       const accessibleLabel = `${action} playback`;
-      setButton(el.playPauseBtn, action, isPlaying ? "pause" : "play");
+      setButtonIcon(el.playPauseBtn, isPlaying ? "pause" : "play");
       el.playPauseBtn.setAttribute("aria-label", accessibleLabel);
       el.playPauseBtn.title = accessibleLabel;
     }
@@ -1906,29 +1351,12 @@
     function normalizeState(input) {
       const s = { ...cloneDefaultState(), ...(input || {}) };
       s.version = 2;
-      s.done = Array.isArray(s.done) ? [...new Set(s.done.filter(x => typeof x === "string"))] : [];
       s.accent = ["us", "uk", "aus", ""].includes(s.accent) ? s.accent : "us";
-      s.blind = Boolean(s.blind);
-      s.hideDone = Boolean(s.hideDone);
-      s.tag = typeof s.tag === "string" ? s.tag : "all";
-      s.selectedId = typeof s.selectedId === "string" ? s.selectedId : "base-0";
       s.source = ["tatoeba", "youglish"].includes(s.source) ? s.source : "youglish";
       s.speed = [0.75, 1].includes(Number(s.speed)) ? Number(s.speed) : 1;
       s.exampleMode = ["all", "saved"].includes(s.exampleMode) ? s.exampleMode : "all";
       delete s.exampleOrder;
       delete s.translationCache;
-      s.custom = Array.isArray(s.custom)
-        ? s.custom
-            .filter(x => x && typeof x.q === "string" && x.q.trim())
-            .map((x, i) => ({
-              id: typeof x.id === "string" ? x.id : `custom-import-${Date.now()}-${i}`,
-              q: x.q.trim(),
-              p: typeof x.p === "string" && x.p.trim() ? x.p : `[${x.q.trim()}]`,
-              ipa: typeof x.ipa === "string" ? x.ipa : "",
-              tag: "custom",
-              custom: true
-            }))
-        : [];
       return s;
     }
 
@@ -1950,9 +1378,15 @@
     }
 
     function guestId(prefix) {
-      const uuid = window.crypto && typeof window.crypto.randomUUID === "function"
-        ? window.crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const cryptoApi = window.crypto;
+      let uuid;
+      if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+        uuid = cryptoApi.randomUUID();
+      } else {
+        // Insecure contexts lack randomUUID but still provide getRandomValues.
+        const bytes = cryptoApi.getRandomValues(new Uint8Array(12));
+        uuid = `${Date.now().toString(36)}-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+      }
       return `${prefix}-${uuid}`;
     }
 
@@ -2048,7 +1482,6 @@
         return { version: 2, statuses, customPhrases, savedExamples, savedVideos };
       } catch (error) {
         console.warn("Could not read guest library:", error);
-        if (el.stateMessage) el.stateMessage.textContent = "Could not read guest library; starting with a clean state.";
         return empty;
       }
     }
@@ -2061,7 +1494,7 @@
           JSON.stringify(guestLibrary)
         );
       } catch (error) {
-        el.stateMessage.textContent = "Could not save guest library to this browser's localStorage.";
+        showExampleMessage("Could not save to this browser's storage.", "error");
       }
     }
 
@@ -2231,208 +1664,14 @@
       try {
         writeMigratedStorage(STORAGE_KEY, LEGACY_STORAGE_KEYS, JSON.stringify(state));
       } catch (err) {
-        el.stateMessage.textContent = "Could not save state to this browser's localStorage.";
+        showExampleMessage("Could not save to this browser's storage.", "error");
       }
     }
 
-    function allPhrases() {
-      return [...BASE_PHRASES, ...state.custom];
-    }
-
-    function phraseById(id) {
-      return allPhrases().find(p => p.id === id) || BASE_PHRASES[0];
-    }
-
-    function selectedPhrase() {
-      const p = phraseById(state.selectedId);
-      if (!allPhrases().some(x => x.id === state.selectedId)) {
-        state.selectedId = p.id;
-        saveState();
-      }
-      return p;
-    }
-
-    function isDone(id) {
-      return state.done.includes(id);
-    }
-
-    function toggleDone(id) {
-      if (isDone(id)) state.done = state.done.filter(x => x !== id);
-      else state.done.push(id);
-      saveState();
-      render();
-    }
-
-    function renderPattern(container, pattern) {
-      container.textContent = "";
-      const regex = /\[([^\]]+)\]|([^\[]+)/g;
-      let match;
-      let foundBlock = false;
-
-      while ((match = regex.exec(pattern || "")) !== null) {
-        if (match[1] != null) {
-          const span = document.createElement("span");
-          span.className = "sound-block";
-          span.textContent = match[1];
-          container.appendChild(span);
-          foundBlock = true;
-        } else if (match[2]) {
-          const text = document.createTextNode(match[2]);
-          container.appendChild(text);
-        }
-      }
-
-      if (!foundBlock && pattern) container.textContent = pattern;
-    }
-
-    function renderCurrent() {
-      const p = selectedPhrase();
-      el.currentQ.textContent = p.q;
-      renderPattern(el.currentP, p.p);
-      el.currentIpa.textContent = p.ipa || "Transcription not available";
-
-      const shouldHide = state.blind && !blindRevealed;
-      el.currentTextWrap.classList.toggle("blind-hidden", shouldHide);
-      el.blindPlaceholder.classList.toggle("visible", shouldHide);
-      el.revealBtn.hidden = !state.blind;
-      el.revealBtn.textContent = shouldHide ? "Reveal" : "Hide";
-    }
-
-    function tags() {
-      return [...new Set(allPhrases().map(p => p.tag))];
-    }
-
-    function renderFilters() {
-      const current = state.tag;
-      el.tagFilter.textContent = "";
-
-      const allOpt = document.createElement("option");
-      allOpt.value = "all";
-      allOpt.textContent = "All reduction types";
-      el.tagFilter.appendChild(allOpt);
-
-      for (const tag of tags()) {
-        const opt = document.createElement("option");
-        opt.value = tag;
-        opt.textContent = tag;
-        el.tagFilter.appendChild(opt);
-      }
-
-      if (![...el.tagFilter.options].some(o => o.value === current)) state.tag = "all";
-      el.tagFilter.value = state.tag;
-      el.hideDone.checked = state.hideDone;
-      el.blindMode.checked = state.blind;
-
+    /* Accent select and the Slow toggle mirror the saved playback settings. */
+    function renderPlaybackSettings() {
       el.accentSelect.value = state.accent;
       el.slowPlaybackBtn.setAttribute("aria-pressed", Number(state.speed) === 0.75 ? "true" : "false");
-    }
-
-    function visiblePhrases() {
-      return allPhrases().filter(p => {
-        if (state.tag !== "all" && p.tag !== state.tag) return false;
-        if (state.hideDone && isDone(p.id)) return false;
-        return true;
-      });
-    }
-
-    function renderList() {
-      el.phraseList.textContent = "";
-      const list = visiblePhrases();
-
-      if (!list.length) {
-        const empty = document.createElement("div");
-        empty.className = "hint";
-        empty.textContent = "No phrases match the current filter.";
-        el.phraseList.appendChild(empty);
-        return;
-      }
-
-      for (const p of list) {
-        const card = document.createElement("article");
-        card.className = "phrase-card";
-        if (p.id === state.selectedId) card.classList.add("selected");
-        if (isDone(p.id)) card.classList.add("done");
-
-        const hit = document.createElement("div");
-        hit.className = "phrase-hit";
-        hit.tabIndex = 0;
-        hit.setAttribute("role", "button");
-        hit.setAttribute("aria-label", `Load phrase: ${p.q}`);
-
-        const q = document.createElement("div");
-        q.className = "phrase-q";
-        q.textContent = p.q;
-
-        const patt = document.createElement("div");
-        patt.className = "phrase-pattern";
-        renderPattern(patt, p.p);
-
-        const ipa = document.createElement("div");
-        ipa.className = "ipa";
-        ipa.textContent = p.ipa || "no transcription";
-
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = p.tag;
-        meta.appendChild(tag);
-
-        hit.append(q, patt, ipa, meta);
-
-        const actions = document.createElement("div");
-        actions.className = "card-actions";
-
-        const heard = document.createElement("button");
-        heard.type = "button";
-        heard.className = "heard";
-        heard.textContent = isDone(p.id) ? "Heard" : "Not marked";
-        heard.classList.toggle("on", isDone(p.id));
-        heard.addEventListener("click", ev => {
-          ev.stopPropagation();
-          toggleDone(p.id);
-        });
-        actions.appendChild(heard);
-
-        if (p.custom) {
-          const del = document.createElement("button");
-          del.type = "button";
-          del.className = "delete";
-          del.textContent = "Delete";
-          del.addEventListener("click", ev => {
-            ev.stopPropagation();
-            removeCustom(p.id);
-          });
-          actions.appendChild(del);
-        }
-
-        const select = () => choosePhrase(p.id, true);
-        hit.addEventListener("click", select);
-        hit.addEventListener("keydown", ev => {
-          if (ev.key === "Enter" || ev.key === " ") {
-            ev.preventDefault();
-            select();
-          }
-        });
-
-        card.append(hit, actions);
-        el.phraseList.appendChild(card);
-      }
-    }
-
-    function renderProgress() {
-      const all = allPhrases();
-      const doneCount = all.filter(p => isDone(p.id)).length;
-      el.progressText.textContent = `${doneCount} / ${all.length}`;
-      const pct = all.length ? (doneCount / all.length) * 100 : 0;
-      el.progressFill.style.width = `${pct}%`;
-    }
-
-    function render() {
-      renderFilters();
-      renderCurrent();
-      renderList();
-      renderProgress();
     }
 
     function accentLabel() {
@@ -2490,13 +1729,13 @@
         if (btn.dataset.exampleMode === "saved") btn.disabled = providerExamples.length === 0;
       });
       const saved = currentSavedExample();
-      const learningPhrase = Boolean(VIEWER_PHRASE_ID && VIEWER_PHRASE_STATUS);
-      const itemLabel = state.source === "tatoeba" ? "track" : "clip";
+      const itemLabel = state.source === "tatoeba" ? "example" : "clip";
       el.saveExampleBtn.classList.toggle("saved", Boolean(saved));
       setButtonLabel(el.saveExampleBtn, saved ? `Remove ${itemLabel}` : `Save ${itemLabel}`);
-      el.saveExampleBtn.setAttribute("aria-label", saved ? "Remove current example from saved" : "Save current example");
-      el.saveExampleBtn.title = saved ? "Remove current example from saved" : "Save current example";
-      el.saveExampleBtn.disabled = !learningPhrase || !currentExternalId;
+      const saveLabel = saved ? `Remove current ${itemLabel} from saved` : `Save current ${itemLabel}`;
+      el.saveExampleBtn.setAttribute("aria-label", saveLabel);
+      el.saveExampleBtn.title = saveLabel;
+      el.saveExampleBtn.disabled = !currentExternalId || saveExampleBusy;
 
       const isYouGlish = state.source === "youglish";
       const validYouTubeVideo = isYouGlish && /^[A-Za-z0-9_-]{11}$/.test(currentYouglishVideoId);
@@ -2505,10 +1744,6 @@
         && currentYouglishRestoreAnchorTime !== null;
       el.watchFullVideoBtn.hidden = fullVideoMode || !canRestoreFullVideo;
       el.watchFullVideoBtn.disabled = !canRestoreFullVideo;
-
-      if (!learningPhrase && !el.exampleMessage.textContent) {
-        showExampleMessage("To save examples, first add the phrase to To Learn.");
-      }
     }
 
     async function loadSavedExamples() {
@@ -3276,7 +2511,7 @@
       el.repeatCaptionBtn.disabled = !captionsAvailable;
       if (el.replayBtn) el.replayBtn.disabled = false;
       el.repeatCaptionBtn.setAttribute("aria-pressed", String(repeatCaptionEnabled));
-      setButtonLabel(el.repeatCaptionBtn, `Repeat caption: ${repeatCaptionEnabled ? "on" : "off"}`);
+      setButtonLabel(el.repeatCaptionBtn, "Repeat");
       el.captionNavigationHint.textContent = state.source !== "youglish"
         ? "Tatoeba does not provide caption history; audio-example navigation is available."
         : (!widget || typeof widget.move !== "function"
@@ -3483,6 +2718,7 @@
       tatoebaIndex = (index + tatoebaTracks.length) % tatoebaTracks.length;
       const track = tatoebaTracks[tatoebaIndex];
       el.tatoebaSentence.textContent = track.text;
+      playEnterAnimation(el.tatoebaSentence);
       el.tatoebaAttribution.textContent = `Voice: ${track.author} · ${track.license} · Tatoeba`;
       el.tatoebaAttribution.href = track.attributionUrl || `https://tatoeba.org/en/sentences/show/${track.sentenceId}`;
       el.tatoebaAudio.src = `/api/tatoeba/audio?id=${encodeURIComponent(track.audioId)}`;
@@ -3497,7 +2733,7 @@
       el.status.classList.remove("error");
       const providerExamples = examplesForCurrentSource();
       el.status.textContent = usingSavedExamples()
-        ? `Saved track ${savedExampleIndex + 1}/${providerExamples.length} · Tatoeba`
+        ? `Saved example ${savedExampleIndex + 1}/${providerExamples.length} · Tatoeba`
         : `Audio examples found: ${tatoebaTracks.length} · random order · example ${tatoebaIndex + 1}/${tatoebaTracks.length} · Tatoeba`;
       renderExampleTools();
       if (autoplay) playTatoeba();
@@ -3624,7 +2860,7 @@
       fetchYouglish(
         `${query} #${example.external_id}`,
         query,
-        `saved video ${savedExampleIndex + 1}/${providerExamples.length}`
+        `saved clip ${savedExampleIndex + 1}/${providerExamples.length}`
       );
     }
 
@@ -3664,21 +2900,6 @@
         return;
       }
       fetchYouglish(`"${query}"`, query);
-    }
-
-    function choosePhrase(id, scrollToPlayer = false) {
-      state.selectedId = id;
-      blindRevealed = false;
-      currentQueryOverride = null;
-      saveState();
-      render();
-      fetchPhrase(selectedPhrase().q);
-
-      if (scrollToPlayer) {
-        requestAnimationFrame(() => {
-          el.playerTop.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
     }
 
     function shorterSuggestion(query) {
@@ -3767,8 +2988,15 @@
       }
     }
 
+    function playEnterAnimation(element) {
+      element.classList.remove("is-entering");
+      element.getBoundingClientRect(); // force a reflow so the animation restarts
+      element.classList.add("is-entering");
+    }
+
     function renderCaption(raw) {
       el.captionText.textContent = "";
+      playEnterAnimation(el.captionText);
       hideSelectionActions();
       if (!raw) {
         el.captionText.textContent = "Captions will appear during playback.";
@@ -4020,7 +3248,47 @@
       }
     }
 
+    /*
+     * Puts the phrase being practised into To Learn (same rules as addTextToLearn) and adopts its id.
+     * Resolves true once the phrase has an id, false when the viewer moved to another phrase meanwhile.
+     */
+    async function addViewerPhraseToLearn() {
+      const phraseAtRequest = VIEWER_PHRASE;
+      const phrase = cleanCaptionText(phraseAtRequest).slice(0, 240);
+      if (!phrase) throw new Error("Phrase is missing.");
+      const context = cleanCaptionText(currentCaptionText).slice(0, 1_000);
+      let id = "";
+      let status = "";
+      if (!isAuthenticated) {
+        const result = addGuestPhrase(phrase, context, "");
+        if (!result.id) throw new Error("Phrase is missing.");
+        saveGuestLibrary();
+        id = result.id;
+        status = result.status || "to_learn";
+      } else {
+        const response = await fetch("/api/phrases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ text: phrase, context, translation: "" })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data && data.error ? data.error : `HTTP ${response.status}`);
+        if (!data || !data.id) throw new Error("The phrase could not be added.");
+        id = data.id;
+        status = data.status || "to_learn";
+      }
+      if (phraseAtRequest !== VIEWER_PHRASE) return false;
+      VIEWER_PHRASE_ID = id;
+      VIEWER_PHRASE_STATUS = status;
+      const url = new URL(window.location.href);
+      url.searchParams.set("phraseId", id);
+      history.replaceState(null, "", url);
+      await loadSavedExamples();
+      return true;
+    }
+
     async function toggleSavedExample() {
+      if (saveExampleBusy) return;
       if (!trainerReady) {
         showExampleMessage("Checking Google sign-in…");
         return;
@@ -4029,25 +3297,46 @@
       const externalId = state.source === "youglish"
         ? currentYouglishVideoId
         : String(tatoebaTrack?.audioId || "");
-      if (!VIEWER_PHRASE_ID || !externalId) return;
-      const existing = currentSavedExample();
-      const shouldPromote = !existing && VIEWER_PHRASE_STATUS === "pick";
+      if (!VIEWER_PHRASE || !externalId) return;
       const wasSavedMode = usingSavedExamples();
-      const itemLabel = state.source === "tatoeba" ? "track" : "video";
-      const mediaLabel = state.source === "tatoeba" ? "Track" : "Video";
-      let savedMessage;
-      if (existing) savedMessage = `${mediaLabel} removed from saved examples.`;
-      else if (shouldPromote) savedMessage = `${mediaLabel} saved; phrase added to To Learn.`;
-      else savedMessage = `${mediaLabel} saved for this phrase.`;
+      const itemLabel = state.source === "tatoeba" ? "example" : "clip";
+      const mediaLabel = state.source === "tatoeba" ? "Example" : "Clip";
+      let addedPhrase = false;
+      saveExampleBusy = true;
       el.saveExampleBtn.disabled = true;
       el.saveExampleBtn.setAttribute("aria-busy", "true");
-      let savingMessage;
-      if (existing) savingMessage = `Removing ${itemLabel} from saved examples…`;
-      else if (shouldPromote) savingMessage = `Adding phrase to To Learn and saving ${itemLabel}…`;
-      else savingMessage = `Saving ${itemLabel}…`;
-      showExampleMessage(savingMessage);
 
       try {
+        // A phrase that is not in the library yet (for example picked from a caption with Listen) is added first.
+        if (!VIEWER_PHRASE_ID) {
+          showExampleMessage(`Adding phrase to To Learn and saving ${itemLabel}…`);
+          try {
+            addedPhrase = await addViewerPhraseToLearn();
+          } catch (error) {
+            console.error(error);
+            showExampleMessage(`Could not add the phrase to To Learn: ${error.message || error}`, "error");
+            return;
+          }
+          if (!addedPhrase) return;
+        }
+        const existing = currentSavedExample();
+        const promoteStatus = !existing && VIEWER_PHRASE_STATUS === "pick";
+        const shouldPromote = addedPhrase || promoteStatus;
+        let savedMessage;
+        if (existing && !addedPhrase) savedMessage = `${mediaLabel} removed from saved examples.`;
+        else if (shouldPromote) savedMessage = `${mediaLabel} saved; phrase added to To Learn.`;
+        else savedMessage = `${mediaLabel} saved for this phrase.`;
+        if (addedPhrase && existing) {
+          // The phrase already had this clip saved; nothing left to do.
+          showExampleMessage(savedMessage);
+          return;
+        }
+        let savingMessage;
+        if (existing) savingMessage = `Removing ${itemLabel} from saved examples…`;
+        else if (shouldPromote) savingMessage = `Adding phrase to To Learn and saving ${itemLabel}…`;
+        else savingMessage = `Saving ${itemLabel}…`;
+        showExampleMessage(savingMessage);
+
         if (!isAuthenticated) {
           toggleGuestSavedExample({
             phraseId: VIEWER_PHRASE_ID,
@@ -4063,7 +3352,7 @@
               attributionUrl: tatoebaTrack.attributionUrl || ""
             } : {}
           });
-          if (shouldPromote) setGuestPhraseStatus(VIEWER_PHRASE_ID, "to_learn");
+          if (promoteStatus) setGuestPhraseStatus(VIEWER_PHRASE_ID, "to_learn");
           saveGuestLibrary();
           savedExamples = guestSavedExamplesForCurrentPhrase();
           savedExampleSequenceKey = "";
@@ -4097,7 +3386,7 @@
             : savedExamples;
           savedExampleSequenceKey = "";
         }
-        if (shouldPromote) VIEWER_PHRASE_STATUS = "to_learn";
+        if (promoteStatus) VIEWER_PHRASE_STATUS = "to_learn";
         showExampleMessage(savedMessage);
         if (existing && wasSavedMode) {
           const providerExamples = examplesForCurrentSource();
@@ -4105,9 +3394,14 @@
           else fetchPhrase(currentQueryOverride || VIEWER_PHRASE, Boolean(currentQueryOverride));
         }
       } catch (error) {
-        showExampleMessage(error.message || "Could not update saved examples.", "error");
+        const reason = error.message || "Could not update saved examples.";
+        showExampleMessage(
+          addedPhrase ? `Phrase added to To Learn, but the ${itemLabel} could not be saved: ${reason}` : reason,
+          "error"
+        );
         console.error(error);
       } finally {
+        saveExampleBusy = false;
         el.saveExampleBtn.removeAttribute("aria-busy");
         renderExampleTools();
       }
@@ -4683,7 +3977,7 @@
       }
       const providerExamples = examplesForCurrentSource();
       el.status.textContent = usingSavedExamples()
-        ? `Saved video ${savedExampleIndex + 1}/${providerExamples.length} · clips found: ${event.totalResult}`
+        ? `Saved clip ${savedExampleIndex + 1}/${providerExamples.length} · clips found: ${event.totalResult}`
         : `Phrase search results: ${event.totalResult} · accent: ${accentLabel()}`;
     }
 
@@ -4760,7 +4054,7 @@
       if (Number.isFinite(speed)) {
         state.speed = speed;
         saveState();
-        renderFilters();
+        renderPlaybackSettings();
         recordCaptionTrace("widget.speed", { speed });
       }
     }
@@ -4842,98 +4136,9 @@
       if (!Number.isFinite(rate)) return;
       state.speed = rate;
       saveState();
-      renderFilters();
+      renderPlaybackSettings();
       el.tatoebaAudio.playbackRate = rate;
       if (state.source === "youglish") callWidget("setSpeed", rate);
-    }
-
-    function randomUndone() {
-      const pool = allPhrases().filter(p => {
-        if (isDone(p.id)) return false;
-        if (state.tag !== "all" && p.tag !== state.tag) return false;
-        return true;
-      });
-
-      if (!pool.length) {
-        el.stateMessage.textContent = "No unmarked phrases match the current filter.";
-        return;
-      }
-
-      const p = pool[Math.floor(Math.random() * pool.length)];
-      el.stateMessage.textContent = "";
-      choosePhrase(p.id, true);
-    }
-
-    function addCustom() {
-      const q = el.customPhrase.value.trim().replace(/\s+/g, " ");
-      if (!q) return;
-
-      const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      state.custom.push({
-        id,
-        q,
-        p: `[${q}]`,
-        ipa: "",
-        tag: "custom",
-        custom: true
-      });
-      el.customPhrase.value = "";
-      state.selectedId = id;
-      blindRevealed = false;
-      saveState();
-      render();
-      fetchPhrase(q);
-      el.playerTop.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    function removeCustom(id) {
-      state.custom = state.custom.filter(p => p.id !== id);
-      state.done = state.done.filter(x => x !== id);
-      if (state.selectedId === id) state.selectedId = BASE_PHRASES[0].id;
-      saveState();
-      render();
-      fetchPhrase(selectedPhrase().q);
-    }
-
-    function exportState() {
-      const payload = {
-        exportedAt: new Date().toISOString(),
-        app: "unmumble",
-        state
-      };
-
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const stamp = new Date().toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `unmumble-${stamp}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      el.stateMessage.textContent = "State exported.";
-    }
-
-    async function importState(file) {
-      try {
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-        const candidate = parsed && parsed.state ? parsed.state : parsed;
-        state = normalizeState(candidate);
-        exampleMode = state.exampleMode;
-        savedExampleSequenceKey = "";
-        blindRevealed = false;
-        saveState();
-        render();
-        fetchPhrase(selectedPhrase().q);
-        el.stateMessage.textContent = "State imported.";
-      } catch (err) {
-        el.stateMessage.textContent = "Could not import JSON: the file is damaged or has an invalid format.";
-        console.error(err);
-      } finally {
-        el.importFile.value = "";
-      }
     }
 
     el.captionText.addEventListener("click", event => {
@@ -5085,48 +4290,11 @@
       setSpeed(Number(state.speed) === 0.75 ? 1 : 0.75);
     });
 
-    el.revealBtn.addEventListener("click", () => {
-      blindRevealed = !blindRevealed;
-      renderCurrent();
-    });
-
-    el.tagFilter.addEventListener("change", () => {
-      state.tag = el.tagFilter.value;
-      saveState();
-      renderList();
-    });
-
-    el.hideDone.addEventListener("change", () => {
-      state.hideDone = el.hideDone.checked;
-      saveState();
-      renderList();
-    });
-
-    el.blindMode.addEventListener("change", () => {
-      state.blind = el.blindMode.checked;
-      blindRevealed = false;
-      saveState();
-      renderCurrent();
-    });
-
     el.accentSelect.addEventListener("change", () => {
       state.accent = el.accentSelect.value;
       saveState();
-      renderFilters();
+      renderPlaybackSettings();
       fetchPhrase(currentQueryOverride || VIEWER_PHRASE, Boolean(currentQueryOverride));
-    });
-
-    el.randomBtn.addEventListener("click", randomUndone);
-    el.addPhraseBtn.addEventListener("click", addCustom);
-    el.customPhrase.addEventListener("keydown", event => {
-      if (event.key === "Enter") addCustom();
-    });
-
-    el.exportBtn.addEventListener("click", exportState);
-    el.importBtn.addEventListener("click", () => el.importFile.click());
-    el.importFile.addEventListener("change", () => {
-      const file = el.importFile.files && el.importFile.files[0];
-      if (file) importState(file);
     });
 
     const viewerParams = initialViewerParams;
@@ -5143,7 +4311,7 @@
     document.title = `${VIEWER_PHRASE} · Unmumble`;
     el.backBtn.addEventListener("click", () => {
       if (history.length > 1) history.back();
-      else window.location.href = "/";
+      else window.location.href = "/library";
     });
 
     window.addEventListener("popstate", event => {
@@ -5210,17 +4378,21 @@
           el.accountEmail.hidden = false;
         }
         el.loginLink.textContent = "Sign out";
+        el.loginLink.removeAttribute("aria-label");
         el.loginLink.href = "/logout";
         el.loginLink.onclick = null;
+        el.loginLink.classList.add("ui-button--ghost", "ui-button--quiet-danger");
       } else {
         if (el.accountEmail) {
           el.accountEmail.textContent = "";
           el.accountEmail.title = "";
           el.accountEmail.hidden = true;
         }
-        el.loginLink.textContent = "Sign in with Google";
+        el.loginLink.innerHTML = '<span class="site-signin-full">Sign in with Google</span><span class="site-signin-short" aria-hidden="true">Sign in</span>';
+        el.loginLink.setAttribute("aria-label", "Sign in with Google");
         el.loginLink.href = "/login?returnTo=" + encodeURIComponent(location.pathname + location.search);
         el.loginLink.onclick = null;
+        el.loginLink.classList.remove("ui-button--ghost", "ui-button--quiet-danger");
       }
     }
 
@@ -5238,7 +4410,7 @@
         state = cloneDefaultState();
         exampleMode = state.exampleMode;
         savedExampleSequenceKey = "";
-        render();
+        renderPlaybackSettings();
         renderSource();
       }
     });
@@ -5311,7 +4483,6 @@
         state = safeLoad();
         exampleMode = state.exampleMode;
         savedExampleSequenceKey = "";
-        el.stateMessage.textContent = "Guest mode: progress is stored only in this browser.";
       }
 
       trainerReady = true;
@@ -5325,7 +4496,7 @@
       }
 
       renderCaption("");
-      render();
+      renderPlaybackSettings();
       applyFullVideoMode();
       renderSource();
       if (state.source === "tatoeba") fetchPhrase(VIEWER_PHRASE, true);

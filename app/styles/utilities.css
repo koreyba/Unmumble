@@ -1,0 +1,21 @@
+/*
+ * Responsive visibility helpers. "mobile" means the phone/tablet layout (≤768px).
+ * They only hide; an element keeps its natural display value where it is shown.
+ */
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+
+/* Small uppercase label used above page titles. */
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--color-label);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}

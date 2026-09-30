@@ -1,18 +1,21 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readWorkspaceSource } from "./helpers/sources.mjs";
 
 test("library page has a local guest mode and an explicit Google entry point", async () => {
-  const page = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const [page, account] = await Promise.all([
+    readWorkspaceSource(),
+    readFile(new URL("../app/components/default-account-widget.tsx", import.meta.url), "utf8"),
+  ]);
 
   assert.match(page, /GUEST_LIBRARY_STORAGE_KEY/);
   assert.match(page, /addGuestPhrase/);
   assert.match(page, /setGuestPhraseStatus/);
-  assert.match(page, /Sign in with Google/);
-  assert.match(page, /Clear guest data/);
+  assert.match(page, /<GuestSignInLink returnTo=\{returnTo\} \/>/);
+  assert.match(account, /Sign in with Google/);
+  // Guest progress is never wiped from a hidden control: there is no "Clear guest data" action.
+  assert.doesNotMatch(page, /Clear guest data|resetGuest/);
 });
 
 test("trainer derives account mode from the optional session and never sends guest mutations to user APIs", async () => {
@@ -37,7 +40,7 @@ test("trainer derives account mode from the optional session and never sends gue
 
 test("React learning surfaces use optional session discovery instead of a local auth hint", async () => {
   const [workspace, videos, account] = await Promise.all([
-    readFile(new URL("../app/components/phrase-workspace.tsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/signed-in-site-account.tsx", import.meta.url), "utf8"),
   ]);
@@ -53,7 +56,7 @@ test("React learning surfaces use optional session discovery instead of a local 
 
 test("every account surface routes sign out through the branded app flow", async () => {
   const sources = await Promise.all([
-    readFile(new URL("../app/components/phrase-workspace.tsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/integrations/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/trainer.html", import.meta.url), "utf8"),
@@ -67,7 +70,7 @@ test("every account surface routes sign out through the branded app flow", async
 
 test("every signed-in section shows the account email beside Sign out", async () => {
   const [workspace, videos, settings, trainer, navigationStyles, account] = await Promise.all([
-    readFile(new URL("../app/components/phrase-workspace.tsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/integrations/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/trainer.html", import.meta.url), "utf8"),
@@ -110,8 +113,8 @@ test("Settings stays guest after logout until the learner explicitly signs in", 
     loadingBranch >= 0 && loadingBranch < guestBranch,
     "Settings must not expose account controls before session discovery finishes",
   );
-  assert.match(navigation, /href: "\/settings", label: "Settings"/);
-  assert.match(trainer, /href="\/settings">Settings</);
+  assert.match(navigation, /href: "\/settings",\s*label: "Settings"/);
+  assert.match(trainer, /href="\/settings"[^>]*>[\s\S]*?site-primary-link-label">Settings</);
   assert.match(worker, /new URL\("\/settings", requestUrl\)/);
   assert.doesNotMatch(worker, /loginUrl\.searchParams\.set\("returnTo", pathname\)/);
 });
@@ -158,15 +161,16 @@ test("worker exchanges Access only at login and authorizes every account API wit
 test("all pages consistently use 'Sign in with Google' and SiteNavigation provides it on Home page", async () => {
   const [chat, workspace, navigation, defaultAccount, logout] = await Promise.all([
     readFile(new URL("../app/components/ai-practice-chat.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/phrase-workspace.tsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../app/components/site-navigation.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/default-account-widget.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/logout/page.tsx", import.meta.url), "utf8"),
   ]);
 
   // AI chat uses 'Sign in with Google' in header instead of bare 'Sign in'
-  assert.match(chat, />Sign in with Google<\/a>/);
-  assert.doesNotMatch(chat, />Sign in<\/a>/);
+  assert.match(chat, /GuestSignInLink/);
+  assert.match(chat, /<ButtonLink[\s\S]*?>\s*Sign in with Google\s*<\/ButtonLink>/);
+  assert.doesNotMatch(chat, />Sign in<\/(?:a|ButtonLink)>/);
 
   // Phrase workspace mobile guest card uses 'Sign in with Google'
   assert.doesNotMatch(workspace, /className="site-account-link"[\s\S]*?>\s*Sign in\s*<\/a>/);
@@ -177,4 +181,14 @@ test("all pages consistently use 'Sign in with Google' and SiteNavigation provid
 
   // Logout page suppresses account widget mid-sign-out
   assert.match(logout, /<SiteNavigation active="library" account=\{null\} \/>/);
+});
+
+test("removing a saved video is immediate and undoable instead of asking with a native dialog", async () => {
+  const videos = await readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(videos, /window\.confirm|\bconfirm\(/);
+  assert.match(videos, /async function undoRemove\(\)/);
+  assert.match(videos, /<Button onClick=\{\(\) => void undoRemove\(\)\}[^>]*>Undo<\/Button>/);
+  // The notice clears itself so a stale Undo never lingers.
+  assert.match(videos, /window\.setTimeout\(\(\) => \{\s*setNotice\(""\);\s*setUndoRemoval\(null\);/);
 });

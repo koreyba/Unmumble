@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readGlobalStyles } from "./helpers/styles.mjs";
 
 test("the shared app theme owns the Forest and Clay grid backdrop", async () => {
   const theme = await readFile(new URL("../public/app-theme.css", import.meta.url), "utf8");
@@ -17,7 +18,7 @@ test("the shared app theme owns the Forest and Clay grid backdrop", async () => 
 
 test("every application surface loads the shared app theme", async () => {
   const [globals, trainer] = await Promise.all([
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readGlobalStyles(),
     readFile(new URL("../public/trainer.html", import.meta.url), "utf8"),
   ]);
 
@@ -26,7 +27,7 @@ test("every application surface loads the shared app theme", async () => {
 });
 
 test("page styles consume the shared theme instead of redefining it", async () => {
-  const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const globals = await readGlobalStyles();
 
   assert.doesNotMatch(globals, /--bg: #/);
   assert.doesNotMatch(globals, /rgba\(75, 153, 190, \.14\)/);
@@ -36,59 +37,68 @@ test("page styles consume the shared theme instead of redefining it", async () =
 });
 
 test("navigation and content cards use the shared surface tokens", async () => {
-  const [globals, navigation] = await Promise.all([
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  const [globals, navigation, kit] = await Promise.all([
+    readGlobalStyles(),
     readFile(new URL("../public/site-navigation.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/ui.css", import.meta.url), "utf8"),
   ]);
 
-  for (const selector of ["phrase-card", "integration-card", "video-stage", "video-card"]) {
-    assert.match(globals, new RegExp(`\\.${selector} \\{[^}]*background: var\\(--app-card-background\\)`, "s"));
-  }
+  // Every content card is one shared Card that paints the themed card surface.
+  assert.match(kit, /\.ui-card \{[^}]*background: var\(--color-card-background\)/s);
+  assert.match(kit, /\.ui-card \{[^}]*border: 1px solid var\(--color-border\)/s);
   assert.match(navigation, /\.site-navigation \{[^}]*background: var\(--app-nav-background\)/s);
-  assert.doesNotMatch(`${globals}\n${navigation}`, /#3f7d96|#c8efff|#79d6ff/i);
+  assert.doesNotMatch(`${globals}\n${navigation}\n${kit}`, /#3f7d96|#c8efff|#79d6ff/i);
 });
 
 test("Library controls distinguish blue interaction from clay analysis data", async () => {
-  const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const [globals, kit] = await Promise.all([
+    readGlobalStyles(),
+    readFile(new URL("../public/ui.css", import.meta.url), "utf8"),
+  ]);
 
-  for (const selector of ["mechanism-filter", "custom-phrase-form"]) {
-    assert.match(globals, new RegExp(`\\.${selector} \\{[^}]*background: var\\(--app-surface-glass\\)`, "s"));
-  }
-  assert.match(globals, /\.tab\.active \{[^}]*border-color: var\(--color-interactive-border\);[^}]*background: var\(--color-interactive-soft\);[^}]*box-shadow: var\(--shadow-soft\)/s);
-  assert.match(globals, /\.mechanism-option\.active \{[^}]*border-color: var\(--color-interactive-border\);[^}]*background: var\(--color-interactive-soft\);[^}]*box-shadow: inset 3px 0 0 var\(--color-interactive\)/s);
-  assert.match(globals, /\.mechanism-badge \{[^}]*border: 1px solid var\(--color-tag-border\);[^}]*background: var\(--color-tag-background\);[^}]*color: var\(--color-tag-text\)/s);
-  assert.match(globals, /\.phrase-type \{[^}]*color: var\(--app-label\)/s);
-  assert.match(globals, /\.phrase-text \{[^}]*color: var\(--app-card-title\)/s);
-  assert.match(globals, /\.phrase-ipa \{[^}]*color: var\(--app-phonetic\)/s);
-  assert.match(globals, /\.card-actions button \{[^}]*background: var\(--color-interactive-surface\);[^}]*color: var\(--color-on-interactive\)/s);
-  assert.match(globals, /\.card-actions \.secondary \{[^}]*background: var\(--color-action-secondary-background\);[^}]*color: var\(--color-action-secondary-text\)/s);
-  assert.match(globals, /\.card-actions \.secondary:hover:not\(:disabled\) \{[^}]*background: var\(--color-danger-background\);[^}]*color: var\(--danger\)/s);
-  assert.match(globals, /@media \(max-width: 480px\) \{[\s\S]*?\.tabs \{[^}]*overflow-x: auto;[^}]*scrollbar-width: none;/);
-  assert.match(globals, /\.tabs::-webkit-scrollbar \{ display: none; \}/);
+  // Blue means "you can act here / this is selected".
+  assert.match(globals, /\.filter-option\.is-active \{[^}]*background: var\(--color-interactive-soft\)/s);
+  assert.match(globals, /\.filter-check\.is-checked \{[^}]*background: var\(--color-interactive-solid\)/s);
+  assert.match(globals, /\.practice-tab\.is-active \{[^}]*border-color: var\(--color-interactive-border\);[^}]*background: var\(--color-interactive-soft\);[^}]*box-shadow: var\(--shadow-soft\)/s);
+  assert.match(kit, /\.ui-button--primary \{[^}]*--ui-bg: var\(--color-interactive-surface\);[^}]*--ui-fg: var\(--color-on-interactive\)/s);
+  assert.match(kit, /\.ui-chip\.is-active[^{]*\{[^}]*border-color: var\(--color-interactive-border\);[^}]*background: var\(--color-interactive-soft\)/s);
+
+  // Clay means "analysis data": mechanism names, tags and the "all mechanisms" row.
+  assert.match(globals, /\.catalog-group__title \{[^}]*color: var\(--color-brand-secondary\)/s);
+  assert.match(globals, /\.filter-option--all\.is-active \{[^}]*background: var\(--color-tag-background\);[^}]*color: var\(--color-tag-text\)/s);
+  assert.match(kit, /\.ui-badge--clay \{[^}]*--ui-badge-bg: var\(--color-tag-background\);[^}]*--ui-badge-fg: var\(--color-tag-text\);[^}]*--ui-badge-border: var\(--color-tag-border\)/s);
+  assert.match(globals, /\.phrase-row__ipa \{[^}]*color: var\(--app-phonetic\)/s);
+
+  // Neutral and destructive actions come from the secondary and danger tokens.
+  assert.match(kit, /\.ui-button \{[^}]*--ui-bg: var\(--color-action-secondary-background\);[^}]*--ui-fg: var\(--color-action-secondary-text\)/s);
+  assert.match(kit, /\.ui-button--danger \{[^}]*--ui-bg: var\(--color-danger-background\);[^}]*--ui-fg: var\(--color-danger\)/s);
+
+  // Small screens keep the queue chips on one scrollable line.
+  assert.match(globals, /\.practice-chips \{[^}]*overflow-x: auto;[^}]*scrollbar-width: none;/s);
+  assert.match(globals, /\.practice-chips::-webkit-scrollbar \{ display: none; \}/);
 });
 
-test("Library format counts stay circular for two and three digit values", async () => {
-  const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+test("Practice queue counts keep their shape for two and three digit values", async () => {
+  const globals = await readGlobalStyles();
 
-  assert.match(globals, /\.tab strong \{[^}]*display: grid;[^}]*width: 42px;[^}]*height: 42px;[^}]*padding: 0;[^}]*border-radius: 50%;[^}]*place-items: center;[^}]*flex: 0 0 42px;/s);
+  assert.match(globals, /\.practice-tab__count \{[^}]*display: grid;[^}]*min-width: 40px;[^}]*height: 40px;[^}]*padding: 0 8px;[^}]*place-items: center;[^}]*border-radius: var\(--radius-pill\);/s);
 });
 
 test("Library keeps Practice compact and Add to Learn secondary", async () => {
-  const [globals, workspace] = await Promise.all([
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/phrase-workspace.tsx", import.meta.url), "utf8"),
-  ]);
+  const row = await readFile(new URL("../app/components/workspace/phrase-row.tsx", import.meta.url), "utf8");
 
-  assert.match(workspace, /className=\{surface === "library" \? "save-action" : undefined\}/);
-  assert.match(globals, /\.listen-link \{[^}]*padding: 13px 0 0;[^}]*border: 0;[^}]*background: transparent;[^}]*color: var\(--color-link\)/s);
-  assert.match(globals, /\.card-actions \.save-action \{[^}]*background: var\(--color-action-secondary-background\);[^}]*color: var\(--color-action-secondary-text\)/s);
-  assert.match(globals, /\.card-actions \.save-action:hover:not\(:disabled\) \{[^}]*background: var\(--color-interactive-soft\);[^}]*color: var\(--color-interactive\)/s);
+  // The trainer shortcut is a small round icon button; adding is the neutral secondary button.
+  assert.match(row, /<IconButton[\s\S]*?label="Open in trainer"[\s\S]*?pill[\s\S]*?size="sm"/);
+  const addButton = row.match(/<Button\s+collapse[\s\S]*?>\s*Add to Learn\s*<\/Button>/)?.[0] ?? "";
+  assert.ok(addButton, "Add to Learn button must exist");
+  assert.doesNotMatch(addButton, /variant=/, "Add to Learn stays the default secondary style");
+  assert.match(addButton, /size="sm"/);
 });
 
 test("interface typography stays readable while landing headings keep their display face", async () => {
   const [theme, globals, navigation] = await Promise.all([
     readFile(new URL("../public/app-theme.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readGlobalStyles(),
     readFile(new URL("../public/site-navigation.css", import.meta.url), "utf8"),
   ]);
 
@@ -212,7 +222,7 @@ test("the theme controller loads before content and every navigation exposes its
 
 test("application and Trainer components consume semantic tokens instead of hard-coded palettes", async () => {
   const [globals, trainer] = await Promise.all([
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readGlobalStyles(),
     readFile(new URL("../public/trainer.html", import.meta.url), "utf8"),
   ]);
   const componentStyles = `${globals}\n${trainer}`;
@@ -220,8 +230,10 @@ test("application and Trainer components consume semantic tokens instead of hard
   assert.doesNotMatch(componentStyles, /#38bdf8|#7dd3fc|#b6e8ff|rgba\(125,\s*211,\s*252/i);
   assert.doesNotMatch(globals, /#12171c|#251b17|#151512|#26171b|#13251f/i);
   assert.match(globals, /\.landing-method \{[^}]*background: var\(--color-method-surface\);[^}]*color: var\(--color-method-text\)/s);
-  assert.match(trainer, /\.sticky-stage \{[^}]*background: var\(--color-sticky-background\)/s);
-  assert.match(trainer, /\.media-full-video-btn \{[^}]*background: var\(--color-interactive-surface\);[^}]*color: var\(--color-on-interactive\)/s);
+  assert.match(trainer, /\.video-restore-banner \{[^}]*background: var\(--color-sticky-background\)/s);
+  // The Trainer's primary action (Play) uses the shared primary button: blue surface + on-interactive text from ui.css.
+  assert.match(trainer, /id="playPauseBtn" class="player-play ui-button ui-button--primary"/);
+  assert.match(trainer, /<link rel="stylesheet" href="\/ui\.css" \/>/);
 });
 
 test("site navigation serves matching transparent wordmarks for both color themes", async () => {

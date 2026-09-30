@@ -48,6 +48,8 @@ export type AiChatPublicSummary = {
   explanationLanguage: string;
   targetCount: number;
   messageCount: number;
+  /** One plain-text line from the latest message; empty for a chat without text yet. */
+  preview: string;
   createdAt: string;
   updatedAt: string;
 };

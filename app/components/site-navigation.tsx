@@ -6,12 +6,45 @@ import { DefaultAccountWidget } from "./default-account-widget";
 
 export type SiteSection = "home" | "library" | "practice" | "chat" | "videos" | "settings";
 
-const primaryLinks: Array<{ href: string; label: string; section: SiteSection }> = [
-  { href: "/library", label: "Library", section: "library" },
-  { href: "/practice", label: "Practice", section: "practice" },
-  { href: "/chat", label: "AI Chat", section: "chat" },
-  { href: "/videos", label: "Videos", section: "videos" },
-  { href: "/settings", label: "Settings", section: "settings" },
+function NavIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg aria-hidden="true" className="site-primary-link-svg" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+const primaryLinks: Array<{ href: string; label: string; section: SiteSection; icon: ReactNode }> = [
+  {
+    href: "/library",
+    label: "Library",
+    section: "library",
+    icon: <NavIcon><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /></NavIcon>,
+  },
+  {
+    href: "/practice",
+    label: "Practice",
+    section: "practice",
+    icon: <NavIcon><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><rect height="6" rx="1.5" width="4" x="3" y="14" /><rect height="6" rx="1.5" width="4" x="17" y="14" /></NavIcon>,
+  },
+  {
+    href: "/chat",
+    label: "AI Chat",
+    section: "chat",
+    icon: <NavIcon><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.4-4.3A7.5 7.5 0 1 1 20 11.5z" /></NavIcon>,
+  },
+  {
+    href: "/videos",
+    label: "Videos",
+    section: "videos",
+    icon: <NavIcon><rect height="14" rx="3" width="18" x="3" y="5" /><path d="m10 9.5 5 2.5-5 2.5z" /></NavIcon>,
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    section: "settings",
+    icon: <NavIcon><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></NavIcon>,
+  },
 ];
 
 export function SiteNavigation({
@@ -37,7 +70,10 @@ export function SiteNavigation({
               className="site-primary-link"
               href={link.href}
               key={link.section}
-            >{link.label}</Link>
+            >
+              <span aria-hidden="true" className="site-primary-link-icon">{link.icon}</span>
+              <span className="site-primary-link-label">{link.label}</span>
+            </Link>
           ))}
         </nav>
         <div className="site-account">
@@ -55,13 +91,18 @@ export function SiteNavigation({
           <button
             aria-label="Change color theme"
             aria-pressed="false"
-            className="theme-toggle"
+            className="theme-toggle ui-button ui-button--ghost ui-button--icon"
             data-theme-toggle
             suppressHydrationWarning
             type="button"
           >
-            <span aria-hidden="true" className="theme-toggle-sun">☀</span>
-            <span aria-hidden="true" className="theme-toggle-moon">☾</span>
+            <svg aria-hidden="true" className="theme-toggle-sun" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+            </svg>
+            <svg aria-hidden="true" className="theme-toggle-moon" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" viewBox="0 0 24 24">
+              <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+            </svg>
           </button>
           {account !== undefined ? account : <DefaultAccountWidget active={active} />}
         </div>

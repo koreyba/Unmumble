@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
+import { BookmarkPlusIcon } from "@/app/components/ai-chat-icons";
+import { Button, Notice } from "@/app/components/ui";
 
 export type AiWriteProposalOperation =
   | "add_vocabulary_entries"
@@ -45,8 +47,6 @@ export type AiWriteProposalProps = Readonly<{
   onConfirm?: (proposalId: string) => void;
   onCancel?: (proposalId: string) => void;
 }>;
-
-const actionStyle = { minHeight: 44 } as const;
 
 function entryCountLabel(count: number) {
   return `${count} ${count === 1 ? "entry" : "entries"}`;
@@ -234,6 +234,8 @@ export function AiChatWriteProposal({
   const busy = status === "busy";
   const showActions = status === "pending" || busy;
   const statusRole = status === "failed" ? "alert" : "status";
+  const statusTone = status === "failed" ? "danger" : status === "confirmed" ? "success" : null;
+  const statusMessage = proposalStatusMessage(operation, status, count, errorMessage, result, removal);
 
   return (
     <section
@@ -244,6 +246,7 @@ export function AiChatWriteProposal({
       data-status={status}
     >
       <header className="ai-chat-write-proposal-heading">
+        <span aria-hidden="true" className="ai-chat-write-proposal-icon"><BookmarkPlusIcon /></span>
         <div>
           <h3 id={titleId}>{proposalTitle(operation, removal)}</h3>
           <p className="ai-chat-write-proposal-count">
@@ -281,43 +284,57 @@ export function AiChatWriteProposal({
       )}
 
       {expandable && (
-        <button
+        <Button
           aria-controls={listId}
           aria-expanded={expanded}
           className="ai-chat-write-proposal-toggle"
           onClick={() => setExpanded((value) => !value)}
-          style={actionStyle}
-          type="button"
-        >{expanded ? "Show fewer" : `Show ${count - visibleItemCount} more`}</button>
+          variant="ghost"
+        >{expanded ? "Show fewer" : `Show ${count - visibleItemCount} more`}</Button>
       )}
 
-      <p
-        aria-live={statusRole === "alert" ? "assertive" : "polite"}
-        role={statusRole}
-      >
-        {proposalStatusMessage(operation, status, count, errorMessage, result, removal)}
-      </p>
+      {statusTone ? (
+        <Notice
+          aria-live={statusRole === "alert" ? "assertive" : "polite"}
+          className="ai-chat-write-proposal-status"
+          role={statusRole}
+          tone={statusTone}
+        >
+          {statusMessage}
+        </Notice>
+      ) : (
+        <p
+          aria-live={statusRole === "alert" ? "assertive" : "polite"}
+          className="ai-chat-write-proposal-status"
+          role={statusRole}
+        >
+          {statusMessage}
+        </p>
+      )}
 
       {showActions && errorMessage && (
-        <p aria-live="assertive" className="ai-chat-write-proposal-error" role="alert">
+        <Notice
+          aria-live="assertive"
+          className="ai-chat-write-proposal-error"
+          role="alert"
+          tone="danger"
+        >
           {errorMessage}
-        </p>
+        </Notice>
       )}
 
       {showActions && (
         <div className="ai-chat-write-proposal-actions">
-          <button
+          <Button
             disabled={busy}
             onClick={() => onCancel?.(proposalId)}
-            style={actionStyle}
-            type="button"
-          >Cancel</button>
-          <button
+          >Cancel</Button>
+          <Button
             disabled={busy}
+            loading={busy}
             onClick={() => onConfirm?.(proposalId)}
-            style={actionStyle}
-            type="button"
-          >{busy ? "Applying…" : isChangeSet ? "Confirm changes" : "Confirm"}</button>
+            variant="primary"
+          >{busy ? "Applying…" : isChangeSet ? "Confirm changes" : "Confirm"}</Button>
         </div>
       )}
     </section>

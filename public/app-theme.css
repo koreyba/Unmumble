@@ -37,6 +37,24 @@
   --ok: var(--color-success);
   --danger: var(--color-danger);
   --shadow: var(--shadow-card);
+
+  /* Shape, sizing and motion shared by every surface (React app and static Trainer). */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --control-sm: 36px;
+  --control-md: 44px;
+  --control-lg: 54px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.45, .64, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 380ms;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 }
 
 :root,
@@ -81,7 +99,7 @@
   --color-link: #c8efff;
   --color-interactive: #aee8ff;
   --color-interactive-solid: #79d6ff;
-  --color-interactive-surface: linear-gradient(135deg, #38bdf8, #7dd3fc);
+  --color-interactive-surface: linear-gradient(180deg, #6ccdfb, #38bdf8);
   --color-on-interactive: #07131a;
   --color-interactive-soft: rgba(125, 211, 252, .11);
   --color-interactive-soft-hover: rgba(125, 211, 252, .18);
@@ -119,7 +137,7 @@
   --color-range-track: #37424e;
   --color-method-surface: #b7c9aa;
   --color-method-text: #172019;
-  --color-method-muted: rgba(23, 32, 25, .68);
+  --color-method-muted: rgba(23, 32, 25, .8);
   --color-method-line: rgba(23, 32, 25, .24);
   --color-provider-background: #0b1015;
   --color-provider-text: #f3f5f2;
@@ -129,6 +147,12 @@
   --shadow-soft: 0 8px 24px rgba(0, 0, 0, .18);
   --shadow-card: 0 14px 34px rgba(0, 0, 0, .24);
   --shadow-raised: 0 28px 74px rgba(0, 0, 0, .42);
+  --shadow-button: inset 0 1px 0 rgba(255, 255, 255, .34), 0 8px 20px -8px var(--color-interactive-shadow);
+  --shadow-button-hover: inset 0 1px 0 rgba(255, 255, 255, .42), 0 14px 28px -10px var(--color-interactive-shadow);
+  --color-button-border: #3f4b59;
+  --shadow-control: inset 0 1px 0 rgba(255, 255, 255, .05), 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-control-hover: inset 0 1px 0 rgba(255, 255, 255, .07), 0 6px 16px -6px rgba(0, 0, 0, .55);
+  --color-interactive-surface-hover: linear-gradient(180deg, #8fdcfd, #4cc4f8);
   --theme-color: #0d1116;
 }
 
@@ -148,7 +172,7 @@
   --color-ambient-sage: rgba(64, 90, 56, .08);
   --color-text-primary: #192127;
   --color-text-secondary: #58646d;
-  --color-text-tertiary: #68757e;
+  --color-text-tertiary: #5b6871;
   --color-text-inverse: #fbfcf8;
   --color-border: #d4d9dd;
   --color-border-strong: #b6bec5;
@@ -173,7 +197,7 @@
   --color-link: #174f66;
   --color-interactive: #185d78;
   --color-interactive-solid: #246d8a;
-  --color-interactive-surface: linear-gradient(135deg, #185d78, #246d8a);
+  --color-interactive-surface: linear-gradient(180deg, #2b7a99, #1a6482);
   --color-on-interactive: #f7fcff;
   --color-interactive-soft: rgba(36, 109, 138, .1);
   --color-interactive-soft-hover: rgba(36, 109, 138, .16);
@@ -221,16 +245,25 @@
   --shadow-soft: 0 8px 24px rgba(24, 32, 26, .08);
   --shadow-card: 0 14px 34px rgba(24, 32, 26, .11);
   --shadow-raised: 0 28px 74px rgba(24, 32, 26, .16);
+  --shadow-button: inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 18px -8px var(--color-interactive-shadow);
+  --shadow-button-hover: inset 0 1px 0 rgba(255, 255, 255, .28), 0 14px 26px -10px var(--color-interactive-shadow);
+  --color-button-border: #cfd5da;
+  --shadow-control: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 2px rgba(24, 32, 26, .1);
+  --shadow-control-hover: inset 0 1px 0 rgba(255, 255, 255, .9), 0 6px 14px -6px rgba(24, 32, 26, .22);
+  --color-interactive-surface-hover: linear-gradient(180deg, #226f8f, #134f68);
   --theme-color: #f5f3ec;
 }
 
 html {
   min-height: 100%;
   background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background:
     linear-gradient(var(--app-grid-line) 1px, transparent 1px),
@@ -242,8 +275,30 @@ body {
   background-size: var(--app-grid-size) var(--app-grid-size), var(--app-grid-size) var(--app-grid-size), auto, auto, auto;
   color: var(--text);
   font-family: var(--app-ui-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   transition: background-color .2s ease, color .2s ease;
 }
+
+/* Component display rules (buttons, badges …) would otherwise beat the UA [hidden] rule. */
+[hidden] { display: none !important; }
+
+/* Headings keep a confident weight even where a CSS reset flattens them. */
+:where(h1, h2, h3, h4) { font-weight: 750; }
+
+::selection {
+  background: var(--color-interactive-soft-hover);
+  color: var(--color-text-primary);
+}
+
+/* One keyboard focus treatment for every native control, on every surface. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+:where(button, [role="button"]) { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width: 760px) {
   :root { --app-grid-size: 54px; }
@@ -251,4 +306,13 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   body { transition: none; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
 }

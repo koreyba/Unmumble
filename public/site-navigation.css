@@ -8,7 +8,7 @@
   z-index: 2000;
   border-bottom: 1px solid var(--line);
   background: var(--app-nav-background);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px) saturate(1.5);
 }
 
 .site-navigation-inner {
@@ -42,8 +42,12 @@
   height: 40px;
   align-items: center;
   width: max-content;
+  border-radius: var(--radius-sm);
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-base) var(--ease-out);
 }
 
+.site-brand:hover { opacity: .86; }
+.site-brand:active { transform: scale(.97); }
 .site-brand[aria-current="page"] { color: var(--text); }
 
 .site-brand-logo {
@@ -64,13 +68,14 @@
   display: inline-flex;
   min-height: 20px;
   align-items: center;
-  padding: 0 7px;
+  padding: 0 8px;
   border: 1px solid var(--color-interactive-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-interactive-soft);
   color: var(--text);
   font-size: 9px;
-  letter-spacing: .08em;
+  font-weight: 700;
+  letter-spacing: .1em;
   text-transform: uppercase;
 }
 
@@ -83,11 +88,11 @@
   color: var(--muted);
   place-items: center;
   text-decoration: none;
-  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+  transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
 }
 
 .site-github-link:hover {
-  background: var(--color-interactive-soft);
+  background: var(--color-overlay-soft);
   color: var(--text);
   transform: translateY(-1px);
 }
@@ -101,26 +106,33 @@
 .site-primary-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-glass);
 }
 
 .site-primary-link {
   display: grid;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 16px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   place-items: center;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 
 .site-primary-link:hover {
+  background: var(--color-overlay-soft);
   color: var(--text);
 }
 
@@ -129,6 +141,15 @@
   background: var(--color-interactive-soft);
   color: var(--text);
   box-shadow: var(--shadow-soft);
+}
+
+/* Icons only appear in the mobile tab bar. */
+.site-primary-link-icon { display: none; }
+
+.site-primary-link-svg {
+  display: block;
+  width: 22px;
+  height: 22px;
 }
 
 .site-brand:focus-visible,
@@ -148,51 +169,36 @@
   gap: 10px;
 }
 
-.site-account-link {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .site-account-link:hover {
   color: var(--text);
 }
 
-.theme-toggle {
-  position: relative;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  flex: 0 0 44px;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--app-surface-glass);
-  color: var(--text);
-  place-items: center;
-  box-shadow: var(--shadow-soft);
-  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
-}
+/* Phones: the account button says "Sign in"; the full text remains its accessible name. */
+.site-signin-short { display: none; }
 
-.theme-toggle:hover {
-  border-color: var(--color-interactive-border);
-  background: var(--color-interactive-soft);
-  transform: translateY(-1px);
+
+/* Theme switch: a circular ui-button whose sun and moon swap with a soft rotation. */
+.theme-toggle {
+  --ui-radius: 50%;
+  --ui-border: var(--line);
+  --ui-bg: var(--app-surface-glass);
+  --ui-fg: var(--text);
+  --ui-shadow: var(--shadow-soft);
+
+  overflow: hidden;
 }
 
 .theme-toggle-sun,
 .theme-toggle-moon {
   position: absolute;
-  font-size: 20px;
-  line-height: 1;
-  transition: opacity .18s ease, transform .22s ease;
+  width: 20px;
+  height: 20px;
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-slow) var(--ease-spring);
 }
 
 .theme-toggle-sun { opacity: 1; transform: rotate(0) scale(1); }
-.theme-toggle-moon { opacity: 0; transform: rotate(-24deg) scale(.72); }
-:root[data-theme="light"] .theme-toggle-sun { opacity: 0; transform: rotate(24deg) scale(.72); }
+.theme-toggle-moon { opacity: 0; transform: rotate(-70deg) scale(.6); }
+:root[data-theme="light"] .theme-toggle-sun { opacity: 0; transform: rotate(70deg) scale(.6); }
 :root[data-theme="light"] .theme-toggle-moon { opacity: 1; transform: rotate(0) scale(1); }
 
 .site-account-name {
@@ -202,6 +208,16 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Tablet widths: the account cluster and the link pill no longer fit side by side at full size. */
+@media (min-width: 761px) and (max-width: 1140px) {
+  .site-navigation-inner { grid-template-columns: auto 1fr auto; gap: 14px; }
+  .site-primary-links { justify-self: center; }
+  .site-primary-link { padding: 0 12px; }
+  .site-brand-logo { width: 116px; }
+  .site-beta-badge { display: none; }
+  .site-github-link { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -231,10 +247,11 @@
 
   .site-beta-badge {
     min-height: 16px;
-    padding: 0 5px;
+    padding: 0 6px;
     font-size: 8px;
   }
 
+  /* Docked tab bar: icon above label, the active tab is marked by a tinted icon pill. */
   .site-primary-links {
     position: fixed;
     right: 0;
@@ -249,15 +266,47 @@
     border-top: 1px solid var(--line);
     border-radius: 0;
     background: var(--app-nav-mobile-background);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(20px) saturate(1.5);
   }
 
   .site-primary-link {
     min-width: 0;
     min-height: 50px;
     padding: 0 4px;
+    gap: 2px;
+    grid-template-rows: auto auto;
+    align-content: center;
+    border: 0;
+    border-radius: var(--radius-md);
     font-size: 11px;
+    font-weight: 650;
   }
+
+  .site-primary-link:hover { background: transparent; }
+
+  .site-primary-link-icon {
+    display: grid;
+    width: 44px;
+    height: 26px;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    transition: background-color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-spring);
+  }
+
+  .site-primary-link:active .site-primary-link-icon { transform: scale(.92); }
+
+  .site-primary-link[aria-current="page"] {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .site-primary-link[aria-current="page"] .site-primary-link-icon {
+    background: var(--color-interactive-soft-hover);
+    color: var(--color-interactive-link);
+  }
+
+  .site-primary-link[aria-current="page"] .site-primary-link-label { color: var(--text); }
 
   .site-account {
     gap: 7px;
@@ -266,16 +315,12 @@
 
   .site-github-link { display: none; }
 
+  .site-signin-full { display: none; }
+  .site-signin-short { display: inline; }
+
   .site-account-name {
     max-width: min(30vw, 120px);
     font-size: 11px;
-  }
-
-  .theme-toggle {
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
-    flex-basis: 44px;
   }
 }
 
@@ -285,12 +330,13 @@
   .site-beta-badge { display: none; }
   .site-account { gap: 5px; }
   .site-account-name { max-width: min(18vw, 72px); }
-  .site-account-link { font-size: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .site-brand,
   .site-github-link,
-  .theme-toggle,
+  .site-primary-link,
+  .site-primary-link-icon,
   .theme-toggle-sun,
   .theme-toggle-moon { transition: none; }
 }

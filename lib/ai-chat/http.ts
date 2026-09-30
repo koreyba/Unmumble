@@ -42,6 +42,7 @@ export function toPublicAiChatDetail(
     explanationLanguage: chat.explanationLanguage,
     targetCount: chat.targetCount,
     messageCount: chat.messageCount,
+    preview: chat.preview,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     targets: chat.targets.map((target) => ({

@@ -31,6 +31,8 @@ function overrideConstants(source, constants) {
 /**
  * Loads public/trainer.html in jsdom with a fake YouGlish widget.
  *
+ * `fetchImpl` replaces the default `fetch` (which answers every request with an empty JSON body, i.e. a guest).
+ *
  * `constants` overrides `const NAME = value;` declarations in the trainer
  * script, for example timeouts that would otherwise slow down tests.
  */
@@ -38,6 +40,7 @@ export async function createTrainer({
   autoPlayerReady = true,
   constants = {},
   controlledTimeoutMs = null,
+  fetchImpl = null,
   playError = null,
   requireReadyAndPlayingForMove = false,
   replayError = null,
@@ -143,11 +146,11 @@ export async function createTrainer({
       });
       window.YG = { Widget: FakeWidget };
       window.__unmumbleNavigateForRepeat = url => repeatNavigations.push(url);
-      window.fetch = async () => ({
+      window.fetch = fetchImpl || (async () => ({
         ok: true,
         type: "basic",
         json: async () => ({}),
-      });
+      }));
       window.HTMLMediaElement.prototype.load = function load() {};
       window.HTMLMediaElement.prototype.pause = function pause() {};
       window.HTMLMediaElement.prototype.play = async function play() {};

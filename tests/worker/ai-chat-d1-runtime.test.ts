@@ -86,4 +86,46 @@ describe("AI chat lifecycle in the production Workers runtime", () => {
       ["assistant", "pending"],
     ]);
   });
+  it("renames, previews and deletes an owned chat with D1 enforcing the cascades", async () => {
+    let nextId = 0;
+    let nextTime = Date.parse("2026-09-01T11:00:00.000Z");
+    const repository = createAiChatRepository(testEnv.DB, {
+      createId: (kind) => `manage-${kind}-${++nextId}`,
+      now: () => new Date(nextTime++).toISOString(),
+    });
+    const chat = await repository.createChat("runtime-user", { openingMessage: "Welcome **back**." });
+    const started = await repository.beginTurn("runtime-user", chat.id, {
+      clientMessageId: "manage-turn-1",
+      content: "Teach me resilient.",
+      practiceContext: [],
+      configuredProvenance: { provider: "test", model: "test/model" },
+    });
+    await repository.finishTurn("runtime-user", chat.id, "manage-turn-1", {
+      attemptId: started.attempt?.id || "",
+      content: "Resilient means able to recover.",
+      provider: "test",
+      model: "test/model",
+      terminal: { termination: "provider_finish", finishReason: "stop" },
+    });
+
+    const [listed] = (await repository.listChats("runtime-user")).filter((item) => item.id === chat.id);
+    expect(listed.preview).toBe("Resilient means able to recover.");
+    const renamed = await repository.renameChat("runtime-user", chat.id, "  Resilience   drill ");
+    expect(renamed.title).toBe("Resilience drill");
+    await expect(repository.renameChat("someone-else", chat.id, "Nope")).rejects.toMatchObject({
+      code: "not_found",
+    });
+    await expect(repository.deleteChat("someone-else", chat.id)).rejects.toMatchObject({
+      code: "not_found",
+    });
+
+    await repository.deleteChat("runtime-user", chat.id);
+    expect(await repository.getChat("runtime-user", chat.id)).toBeNull();
+    for (const table of ["ai_chat_messages", "ai_chat_assistant_attempts", "ai_chat_practice_items"]) {
+      const row = await testEnv.DB.prepare(`SELECT count(*) AS count FROM ${table} WHERE chat_id = ?`)
+        .bind(chat.id)
+        .first<{ count: number }>();
+      expect(row?.count, table).toBe(0);
+    }
+  });
 });

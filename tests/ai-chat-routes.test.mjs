@@ -56,6 +56,7 @@ test("AI mutations share the exact-origin bounded body boundary", async () => {
   const routeSources = await sources();
   for (const name of [
     "chats",
+    "detail",
     "targets",
     "messages",
     "cancelTurn",
@@ -65,6 +66,7 @@ test("AI mutations share the exact-origin bounded body boundary", async () => {
     assert.match(routeSources[name], /readAiMutationPayload\(/, name);
   }
   assert.match(routeSources.chats, /readCreateChatPayload/);
+  assert.match(routeSources.detail, /readRenameChatPayload/);
   assert.match(routeSources.targets, /readReplaceTargetsPayload/);
   assert.match(routeSources.messages, /readGenerateMessagePayload/);
   assert.match(routeSources.cancelTurn, /readCancelTurnPayload/);
@@ -117,6 +119,8 @@ test("chat, target, and meaning routes expose the complete first-slice persisten
   assert.match(routeSources.chats, /export async function GET/);
   assert.match(routeSources.chats, /export async function POST/);
   assert.match(routeSources.detail, /export async function GET/);
+  assert.match(routeSources.detail, /export async function PATCH/);
+  assert.match(routeSources.detail, /export async function DELETE/);
   assert.match(routeSources.targets, /export async function PATCH/);
   assert.match(routeSources.meanings, /export async function GET/);
   assert.match(routeSources.meanings, /export async function POST/);
@@ -134,6 +138,7 @@ test("chat routes expose a whitelisted public message contract", async () => {
     explanationLanguage: "ru",
     targetCount: 0,
     messageCount: 1,
+    preview: "Hello",
     createdAt: "2026-08-29T10:00:00.000Z",
     updatedAt: "2026-08-29T10:00:01.000Z",
     targets: [],
@@ -172,6 +177,7 @@ test("chat routes expose a whitelisted public message contract", async () => {
     }],
   });
 
+  assert.equal(chat.preview, "Hello");
   assert.deepEqual(chat.messages, [{
     id: "message-1",
     role: "assistant",
@@ -254,4 +260,21 @@ test("server and browser share explicit allowlisted chat DTOs", async () => {
   assert.match(clientSource, /from "\.\/public-contracts\.ts"/u);
   assert.doesNotMatch(httpSource, /\bOmit</u);
   assert.doesNotMatch(clientSource, /export type AiChatClientMessage = \{/u);
+});
+
+test("renaming and deleting a chat are owner-scoped, exact-origin, and never leak the row", async () => {
+  const { detail } = await sources();
+
+  // Both mutations go through the authenticated user's subject only.
+  assert.match(detail, /repository\.renameChat\(user\.subject, chatId\.value, payload\.value\.title\)/);
+  assert.match(detail, /repository\.deleteChat\(user\.subject, chatId\.value\)/);
+  // DELETE has no body, so the exact-origin check runs before anything else happens.
+  const deleteHandler = detail.slice(detail.indexOf("export async function DELETE"));
+  assert.ok(
+    deleteHandler.indexOf("hasSameOrigin(request)") < deleteHandler.indexOf("deleteChat("),
+    "origin is verified before deleting",
+  );
+  assert.match(deleteHandler, /invalid_origin/);
+  assert.match(deleteHandler, /noStoreJson\(\{ deleted: true \}\)/);
+  assert.match(detail, /noStoreJson\(\{ chat \}\)/);
 });

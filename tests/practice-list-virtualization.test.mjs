@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readWorkspaceFile, readWorkspaceSource } from "./helpers/sources.mjs";
 
 import {
   PRACTICE_VIRTUALIZATION_THRESHOLD,
@@ -48,24 +48,23 @@ test("the final virtual row handles an odd last item and stops safely at the end
 });
 
 test("Practice exposes synchronous search over the filtered phrase collection", async () => {
-  const workspace = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const [workspace, form] = await Promise.all([readWorkspaceSource(), readWorkspaceFile("practice-form.tsx")]);
 
   assert.match(workspace, /const \[practiceSearch, setPracticeSearch\] = useState\(""\)/);
   assert.match(workspace, /filterPracticePhrases\(sortedForSurface, practiceSearch\)/);
-  assert.match(workspace, />Search your phrases</);
-  assert.match(workspace, /onChange=\{\(event\) => setPracticeSearch\(event\.target\.value\)\}/);
+  assert.match(form, />Search your phrases</);
+  assert.match(workspace, /onChange=\{setPracticeSearch\}/);
+  assert.match(form, /onChange=\{\(event\) => onChange\(event\.target\.value\)\}/);
 });
 
 test("only Practice routes large phrase collections through the virtual grid", async () => {
-  const workspace = await readFile(
-    new URL("../app/components/phrase-workspace.tsx", import.meta.url),
-    "utf8",
-  );
+  const workspace = await readWorkspaceSource();
 
   assert.match(workspace, /import \{ PracticePhraseGrid \} from "@\/app\/components\/practice-phrase-grid"/);
-  assert.match(workspace, /surface === "practice" \? \(\s*<PracticePhraseGrid/);
-  assert.match(workspace, /<div className="phrase-grid">/);
+  const practiceBlock = workspace.indexOf('{surface === "practice" && (');
+  const grid = workspace.indexOf("<PracticePhraseGrid");
+  assert.ok(practiceBlock >= 0 && grid > practiceBlock, "the virtual grid belongs to the Practice branch");
+  assert.equal((workspace.match(/<PracticePhraseGrid/g) ?? []).length, 1);
+  // Library groups are short, so they render their rows directly.
+  assert.match(workspace, /\{group\.rows\.map\(renderRow\)\}/);
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { GlobeIcon } from "@/app/components/ui";
 
 export type NativeLanguageOption = { code: string; name: string };
 
@@ -49,7 +50,7 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
     >
       <label htmlFor="native-language-search">Native Language</label>
       <div className="native-language-control">
-        <span className="native-language-control-icon" aria-hidden="true">🌐</span>
+        <span className="native-language-control-icon" aria-hidden="true"><GlobeIcon size={18} /></span>
         <input
           id="native-language-search"
           role="combobox"
@@ -81,7 +82,9 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
             }
           }}
         />
-        <span className="native-language-chevron" aria-hidden="true">⌄</span>
+        <span className="native-language-chevron" aria-hidden="true">
+          <svg fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24" width="16"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
       </div>
       {open && (
         <div className="native-language-options" id={listId} role="listbox" aria-label="DeepL target languages">

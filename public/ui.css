@@ -1,0 +1,676 @@
+/*
+ * Unmumble UI kit.
+ *
+ * Component styles shared by the React application (app/components/ui/*) and the
+ * static Trainer (public/trainer.html). Everything here is built from the semantic
+ * tokens in app-theme.css, so light and dark themes stay in sync automatically.
+ * Page-level layout belongs in app/globals.css; a component may only be restyled
+ * here or through its documented CSS custom properties.
+ */
+
+.ui-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ───────────────────────── Button ───────────────────────── */
+
+.ui-button {
+  --ui-bg: var(--color-action-secondary-background);
+  --ui-bg-hover: var(--color-control-background-hover);
+  --ui-fg: var(--color-action-secondary-text);
+  --ui-border: var(--color-button-border);
+  --ui-border-hover: var(--color-interactive-border);
+  --ui-shadow: var(--shadow-control);
+  --ui-shadow-hover: var(--shadow-control-hover);
+  --ui-height: var(--control-md);
+  --ui-pad-x: 18px;
+  --ui-radius: var(--radius-md);
+  --ui-font-size: 14px;
+
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  box-sizing: border-box;
+  min-height: var(--ui-height);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 var(--ui-pad-x);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-bg);
+  box-shadow: var(--ui-shadow);
+  color: var(--ui-fg);
+  font: 650 var(--ui-font-size) / 1 var(--app-ui-font);
+  letter-spacing: -.005em;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+/* The hover surface fades in on top of the base fill, so gradients animate too. */
+.ui-button::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ui-bg-hover);
+  content: "";
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.ui-button > svg { display: block; flex: 0 0 auto; }
+
+@media (hover: hover) {
+  .ui-button:hover:not(:disabled, [aria-disabled="true"]) {
+    border-color: var(--ui-border-hover);
+    box-shadow: var(--ui-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .ui-button:hover:not(:disabled, [aria-disabled="true"])::before { opacity: 1; }
+}
+
+.ui-button:active:not(:disabled, [aria-disabled="true"]) { transform: translateY(0) scale(.97); box-shadow: var(--ui-shadow); }
+
+.ui-button:disabled,
+.ui-button[aria-disabled="true"] {
+  --ui-bg: var(--color-action-disabled-background);
+  --ui-fg: var(--color-action-disabled-text);
+  --ui-border: transparent;
+  --ui-shadow: none;
+  cursor: not-allowed;
+}
+
+.ui-button:disabled > svg,
+.ui-button[aria-disabled="true"] > svg { opacity: .7; }
+
+.ui-button[aria-busy="true"] { cursor: progress; }
+
+/* Variants */
+.ui-button--primary {
+  --ui-bg: var(--color-interactive-surface);
+  --ui-bg-hover: var(--color-interactive-surface-hover);
+  --ui-fg: var(--color-on-interactive);
+  --ui-border: transparent;
+  --ui-border-hover: transparent;
+  --ui-shadow: var(--shadow-button);
+  --ui-shadow-hover: var(--shadow-button-hover);
+}
+
+.ui-button--brand {
+  --ui-bg: var(--color-brand-solid);
+  --ui-bg-hover: color-mix(in srgb, var(--color-brand-solid) 84%, var(--color-text-primary));
+  --ui-fg: var(--color-on-brand);
+  --ui-border: transparent;
+  --ui-border-hover: transparent;
+  --ui-shadow: 0 14px 34px -14px var(--color-brand-border);
+  --ui-shadow-hover: 0 18px 40px -14px var(--color-brand-border);
+}
+
+.ui-button--soft {
+  --ui-bg: var(--color-interactive-soft);
+  --ui-bg-hover: var(--color-interactive-soft-hover);
+  --ui-fg: var(--color-text-primary);
+  --ui-border: var(--color-interactive-border);
+  --ui-border-hover: var(--color-interactive);
+  --ui-shadow: none;
+  --ui-shadow-hover: none;
+}
+
+.ui-button--ghost {
+  --ui-bg: transparent;
+  --ui-bg-hover: var(--color-overlay-soft);
+  --ui-fg: var(--color-text-secondary);
+  --ui-border: transparent;
+  --ui-border-hover: transparent;
+  --ui-shadow: none;
+  --ui-shadow-hover: none;
+}
+
+@media (hover: hover) {
+  .ui-button--ghost:hover:not(:disabled, [aria-disabled="true"]) { color: var(--color-text-primary); }
+}
+
+.ui-button--danger {
+  --ui-bg: var(--color-danger-background);
+  --ui-bg-hover: color-mix(in srgb, var(--color-danger-background) 78%, var(--color-danger));
+  --ui-fg: var(--color-danger);
+  --ui-border: var(--color-danger-border);
+  --ui-border-hover: var(--color-danger);
+  --ui-shadow: none;
+  --ui-shadow-hover: none;
+}
+
+/* Quiet secondary that only reveals "danger" on intent (Remove, Sign out …). */
+.ui-button--quiet-danger {
+  --ui-border-hover: var(--color-danger-border);
+}
+
+@media (hover: hover) {
+  .ui-button--quiet-danger:hover:not(:disabled, [aria-disabled="true"]) { color: var(--color-danger); }
+  .ui-button--quiet-danger:hover:not(:disabled, [aria-disabled="true"])::before { background: var(--color-danger-background); }
+}
+
+/* Toggle buttons (aria-pressed) keep the soft look, with a ring so the state never relies on colour alone. */
+.ui-button[aria-pressed="true"]:not(:disabled) {
+  --ui-bg: var(--color-interactive-soft-hover);
+  --ui-bg-hover: var(--color-interactive-soft-hover);
+  --ui-fg: var(--color-text-primary);
+  --ui-border: var(--color-interactive);
+  --ui-border-hover: var(--color-interactive);
+  --ui-shadow: inset 0 0 0 1px var(--color-interactive);
+  --ui-shadow-hover: inset 0 0 0 1px var(--color-interactive);
+}
+
+/* Sizes and shapes */
+.ui-button--sm { --ui-height: var(--control-sm); --ui-pad-x: 14px; --ui-radius: var(--radius-sm); --ui-font-size: 13px; }
+.ui-button--lg { --ui-height: var(--control-lg); --ui-pad-x: 26px; --ui-radius: var(--radius-lg); --ui-font-size: 15px; }
+.ui-button--pill { --ui-radius: var(--radius-pill); }
+
+/* Touch screens: small buttons still get a full-size target. */
+@media (max-width: 760px), (pointer: coarse) {
+  .ui-button--sm { --ui-height: var(--control-md); }
+}
+.ui-button--block { display: flex; width: 100%; }
+.ui-button--icon { flex: 0 0 auto; width: var(--ui-height); padding: 0; }
+
+/* Responsive icon button: the visible label is dropped on small screens but stays in the accessibility tree. */
+@media (max-width: 768px) {
+  .ui-button--collapse { width: var(--ui-height); padding: 0; }
+
+  .ui-button--collapse .ui-button__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+.ui-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ui-spin .7s linear infinite;
+}
+
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+/* ───────────────────────── Text link ───────────────────────── */
+
+.ui-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-interactive-link);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: .22em;
+  transition: color var(--duration-fast) var(--ease-out), text-decoration-color var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ui-link:hover { color: var(--color-interactive); text-decoration-color: currentcolor; }
+}
+
+/* ───────────────────────── Chip ───────────────────────── */
+
+.ui-chip {
+  display: inline-flex;
+  min-height: var(--control-sm);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font: 650 13px / 1 var(--app-ui-font);
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+button.ui-chip { cursor: pointer; }
+
+/* Touch screens: chips that act as buttons get a full-size target. */
+@media (pointer: coarse) {
+  button.ui-chip { min-height: var(--control-md); }
+}
+button.ui-chip:active { transform: scale(.96); }
+
+@media (hover: hover) {
+  button.ui-chip:hover { border-color: var(--color-border-strong); color: var(--color-text-primary); }
+}
+
+.ui-chip[aria-pressed="true"],
+.ui-chip[aria-selected="true"],
+.ui-chip.is-active {
+  border-color: var(--color-interactive-border);
+  background: var(--color-interactive-soft);
+  color: var(--color-text-primary);
+}
+
+.ui-chip__count {
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.ui-chip.is-active .ui-chip__count,
+.ui-chip[aria-pressed="true"] .ui-chip__count,
+.ui-chip[aria-selected="true"] .ui-chip__count { color: var(--color-interactive-link); }
+
+/* ───────────────────────── Badge ───────────────────────── */
+
+.ui-badge {
+  --ui-badge-bg: var(--color-surface-subtle);
+  --ui-badge-fg: var(--color-text-secondary);
+  --ui-badge-border: var(--color-border);
+
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-badge-border);
+  border-radius: var(--radius-pill);
+  background: var(--ui-badge-bg);
+  color: var(--ui-badge-fg);
+  font: 750 12px / 1 var(--app-ui-font);
+  white-space: nowrap;
+}
+
+.ui-badge--info { --ui-badge-bg: var(--color-interactive-soft); --ui-badge-fg: var(--color-text-primary); --ui-badge-border: var(--color-interactive-border); }
+.ui-badge--success { --ui-badge-bg: var(--color-success-background); --ui-badge-fg: var(--color-success); --ui-badge-border: var(--color-success-border); }
+.ui-badge--warning { --ui-badge-bg: var(--color-warning-background); --ui-badge-fg: var(--color-warning); --ui-badge-border: var(--color-warning-border); }
+.ui-badge--danger { --ui-badge-bg: var(--color-danger-background); --ui-badge-fg: var(--color-danger); --ui-badge-border: var(--color-danger-border); }
+.ui-badge--clay { --ui-badge-bg: var(--color-tag-background); --ui-badge-fg: var(--color-tag-text); --ui-badge-border: var(--color-tag-border); }
+
+/* ───────────────────────── Card ───────────────────────── */
+
+.ui-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-background);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-primary);
+}
+
+.ui-card--padded { padding: clamp(20px, 3vw, 28px); }
+.ui-card--flat { background: var(--color-surface); box-shadow: none; }
+
+.ui-card--interactive {
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ui-card--interactive:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-3px);
+  }
+}
+
+/* ───────────────────────── Form controls ───────────────────────── */
+
+.ui-field { display: grid; gap: 8px; }
+
+.ui-field__label {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ui-field__hint { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.ui-field__error { margin: 0; color: var(--color-danger); font-size: 13px; line-height: 1.5; }
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  background: var(--color-control-background);
+  color: var(--color-text-primary);
+  font: 500 15px / 1.4 var(--app-ui-font);
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+
+.ui-select--control {
+  border-color: var(--color-button-border);
+  background-color: var(--color-action-secondary-background);
+  box-shadow: var(--shadow-control);
+  color: var(--color-action-secondary-text);
+  font-weight: 650;
+}
+
+.ui-textarea { min-height: 132px; padding: 12px 14px; resize: vertical; }
+
+.ui-select {
+  padding-right: 40px;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent calc(50% - 1px), currentcolor calc(50% - 1px), currentcolor calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(-45deg, transparent calc(50% - 1px), currentcolor calc(50% - 1px), currentcolor calc(50% + 1px), transparent calc(50% + 1px));
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  cursor: pointer;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder { color: var(--color-text-tertiary); }
+
+.ui-input:focus-visible,
+.ui-select:focus-visible,
+.ui-textarea:focus-visible {
+  border-color: var(--color-interactive);
+  box-shadow: 0 0 0 4px var(--color-interactive-soft-hover);
+  outline: none;
+}
+
+.ui-input[aria-invalid="true"],
+.ui-textarea[aria-invalid="true"] { border-color: var(--color-danger); }
+.ui-input:disabled, .ui-select:disabled, .ui-textarea:disabled { opacity: .6; cursor: not-allowed; }
+
+/* A text field with a leading icon that shows one focus ring around the whole row. */
+.ui-search {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  background: var(--color-control-background);
+  color: var(--color-text-tertiary);
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+
+.ui-search:focus-within {
+  border-color: var(--color-interactive);
+  box-shadow: 0 0 0 4px var(--color-interactive-soft-hover);
+}
+
+.ui-search > svg { display: block; flex: 0 0 auto; }
+
+.ui-search > input {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  min-height: 46px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: 500 15px / 1.4 var(--app-ui-font);
+  outline: none;
+}
+
+.ui-search > input::placeholder { color: var(--color-text-tertiary); }
+.ui-search > input::-webkit-search-cancel-button { filter: grayscale(1); opacity: .6; }
+
+/* ───────────────────────── Notice ───────────────────────── */
+
+.ui-notice {
+  --ui-notice-bg: var(--color-info-background);
+  --ui-notice-fg: var(--color-info);
+  --ui-notice-border: var(--color-info-border);
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--ui-notice-border);
+  border-radius: var(--radius-md);
+  background: var(--ui-notice-bg);
+  color: var(--ui-notice-fg);
+  font-size: 14px;
+  line-height: 1.45;
+  animation: ui-rise var(--duration-base) var(--ease-out) backwards;
+}
+
+.ui-notice--success { --ui-notice-bg: var(--color-success-background); --ui-notice-fg: var(--color-success); --ui-notice-border: var(--color-success-border); }
+.ui-notice--warning { --ui-notice-bg: var(--color-warning-background); --ui-notice-fg: var(--color-warning); --ui-notice-border: var(--color-warning-border); }
+.ui-notice--danger { --ui-notice-bg: var(--color-danger-background); --ui-notice-fg: var(--color-danger); --ui-notice-border: var(--color-danger-border); }
+.ui-notice__body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.ui-notice__action { flex: 0 0 auto; margin-inline-start: auto; }
+
+/* ───────────────────────── Empty state ───────────────────────── */
+
+.ui-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: clamp(32px, 6vw, 56px) 24px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-glass);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.ui-empty__icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+  place-items: center;
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  font-size: 22px;
+}
+
+.ui-empty__title { margin: 0; color: var(--color-text-primary); font-size: 18px; font-weight: 750; letter-spacing: -.01em; }
+.ui-empty__text { max-width: 46ch; margin: 0; font-size: 14px; line-height: 1.55; }
+.ui-empty__action { margin-top: 14px; }
+
+/* ───────────────────────── Loading placeholders ───────────────────────── */
+
+.ui-skeleton {
+  display: block;
+  min-height: 1em;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-surface-subtle), var(--color-overlay-strong), var(--color-surface-subtle));
+  background-size: 220% 100%;
+  animation: ui-shimmer 1.4s linear infinite;
+}
+
+@keyframes ui-shimmer { to { background-position: -220% 0; } }
+
+.ui-list-skeleton { display: grid; gap: 10px; }
+.ui-list-skeleton__row { min-height: 64px; border-radius: var(--radius-md); }
+
+/* ───────────────────────── Bottom sheet ───────────────────────── */
+
+.ui-sheet-backdrop {
+  position: fixed;
+  z-index: 2500;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: var(--color-scrim);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  animation: ui-fade var(--duration-base) ease-out both;
+}
+
+.ui-sheet {
+  position: fixed;
+  z-index: 2600;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: min(100%, 560px);
+  max-height: min(88vh, 720px);
+  max-height: min(88dvh, 720px);
+  flex-direction: column;
+  margin-inline: auto;
+  padding-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-bottom: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text-primary);
+  animation: ui-sheet-in var(--duration-slow) var(--ease-out) both;
+}
+
+.ui-sheet__handle {
+  width: 44px;
+  height: 4px;
+  flex: 0 0 auto;
+  margin: 0 auto 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+}
+
+.ui-sheet__body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 18px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ui-sheet__footer {
+  flex: 0 0 auto;
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.ui-sheet__title { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; }
+.ui-sheet__subtitle { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 14px; line-height: 1.45; }
+.ui-sheet__actions { display: grid; gap: 8px; }
+
+@keyframes ui-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ui-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ───────────────────────── Help popover ───────────────────────── */
+
+.ui-help { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+
+.ui-help__trigger {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: 800 11px / 1 var(--app-ui-font);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.ui-help__trigger:hover,
+.ui-help__trigger[aria-expanded="true"] {
+  border-color: var(--color-interactive-border);
+  background: var(--color-interactive-soft);
+  color: var(--color-interactive-link);
+}
+
+/* A larger invisible hit area keeps the 22px glyph touch-friendly. */
+.ui-help__trigger::after { position: absolute; inset: -11px; content: ""; }
+
+.ui-help__panel {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 10px);
+  left: -12px;
+  display: grid;
+  width: min(280px, calc(100vw - 32px));
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-raised);
+  text-align: left;
+  transform-origin: 12px -6px;
+  animation: ui-pop var(--duration-base) var(--ease-out) both;
+}
+
+.ui-help__panel--end { right: -8px; left: auto; transform-origin: calc(100% - 20px) -6px; }
+
+.ui-help__panel::before {
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--color-border-strong);
+  border-left: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.ui-help__panel--end::before { right: 14px; left: auto; }
+.ui-help__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ui-help__title { color: var(--color-text-primary); font-size: 13px; font-weight: 750; }
+.ui-help__text { margin: 0; color: var(--color-text-secondary); font-size: 12.5px; line-height: 1.5; }
+.ui-help__example { color: var(--color-phonetic); font-family: var(--app-phonetic-font); font-size: 12.5px; font-weight: 600; }
+
+@keyframes ui-pop { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* ───────────────────────── Motion helpers ───────────────────────── */
+/* Entrances use fill-mode `backwards`: a filled transform animation would turn its element
+   into the containing block of any `position: fixed` descendant (sheets, dialogs). */
+
+.ui-rise { animation: ui-rise var(--duration-slow) var(--ease-out) backwards; animation-delay: calc(var(--ui-index, 0) * 60ms); }
+
+@keyframes ui-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-button, .ui-button::before, .ui-chip, .ui-card--interactive, .ui-link { transition: none; }
+  .ui-spinner { animation-duration: 1.6s !important; animation-iteration-count: infinite !important; }
+  .ui-skeleton { animation: none; }
+}

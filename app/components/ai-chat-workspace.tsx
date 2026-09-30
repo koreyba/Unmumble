@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatConversation } from "@/app/components/ai-chat-conversation";
+import { CloseIcon, MessageIcon, MoreIcon, PlusIcon } from "@/app/components/ai-chat-icons";
+import { ChatActionsSheet, type ChatActionMode } from "@/app/components/ai-chat-list-actions";
+import { Button, Chip, EmptyState, IconButton, ListSkeleton, Notice, Skeleton, Spinner } from "@/app/components/ui";
 import type { AiChatRefreshOptions } from "@/app/components/use-ai-chat-turn-controller";
 import {
   type AiChatClientDetail,
@@ -18,6 +21,7 @@ function asSummary(chat: AiChatClientDetail): AiChatClientSummary {
     explanationLanguage: chat.explanationLanguage,
     targetCount: chat.targetCount,
     messageCount: chat.messageCount,
+    preview: chat.preview || "",
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
   };
@@ -58,15 +62,39 @@ export function ChatWorkspace() {
   const [openingChatId, setOpeningChatId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState("");
+  const [manage, setManage] = useState<{ id: string; mode: ChatActionMode } | null>(null);
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageError, setManageError] = useState("");
   const bootstrapped = useRef(false);
   const createInFlight = useRef(false);
   const openRequestId = useRef(0);
   const openController = useRef<AbortController | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const sidebarWasOpen = useRef(false);
+
+  // Drawer focus: land on the close control when it opens, hand focus back to the
+  // "Chats" trigger when it closes (desktop keeps the list inline and never opens it).
+  useEffect(() => {
+    if (sidebarOpen) {
+      sidebarWasOpen.current = true;
+      if (window.matchMedia("(max-width: 980px)").matches) {
+        sidebarRef.current?.querySelector<HTMLElement>(".ai-chat-sidebar-close")?.focus({ preventScroll: true });
+      }
+      return;
+    }
+    if (!sidebarWasOpen.current) return;
+    sidebarWasOpen.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body || sidebarRef.current?.contains(active)) {
+      document.querySelector<HTMLElement>(".ai-chat-mobile-chats")?.focus({ preventScroll: true });
+    }
+  }, [sidebarOpen]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
     function closeSidebarOnEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      // An open actions sheet owns Escape; the drawer waits for the next press.
+      if (event.key !== "Escape" || document.querySelector(".ui-sheet")) return;
       event.preventDefault();
       setSidebarOpen(false);
     }
@@ -180,6 +208,70 @@ export function ChatWorkspace() {
     }
   }
 
+  function closeManage() {
+    if (manageBusy) return;
+    setManage(null);
+    setManageError("");
+  }
+
+  async function renameChat(chatId: string, title: string) {
+    setManageBusy(true);
+    setManageError("");
+    try {
+      const result = await requestAiChatJson<{ chat: AiChatClientSummary }>(
+        `/api/ai/chats/${encodeURIComponent(chatId)}`,
+        { method: "PATCH", body: JSON.stringify({ title }) },
+      );
+      setChats((current) => current.map((item) => (
+        item.id === chatId ? { ...item, title: result.chat.title } : item
+      )));
+      setChat((current) => current?.id === chatId ? { ...current, title: result.chat.title } : current);
+      setManage(null);
+    } catch (reason) {
+      setManageError(reason instanceof Error ? reason.message : "Could not rename this chat.");
+    } finally {
+      setManageBusy(false);
+    }
+  }
+
+  async function deleteChat(chatId: string) {
+    setManageBusy(true);
+    setManageError("");
+    try {
+      await requestAiChatJson<{ deleted: true }>(
+        `/api/ai/chats/${encodeURIComponent(chatId)}`,
+        { method: "DELETE" },
+      );
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "";
+      setManageError(message.startsWith("Another message is still being answered")
+        ? "This chat is still answering. Stop the reply first, then delete it."
+        : message || "Could not delete this chat.");
+      setManageBusy(false);
+      return;
+    }
+    const index = chats.findIndex((item) => item.id === chatId);
+    const remaining = chats.filter((item) => item.id !== chatId);
+    setChats(remaining);
+    setDrafts((current) => Object.fromEntries(
+      Object.entries(current).filter(([id]) => id !== chatId),
+    ));
+    setManage(null);
+    setManageBusy(false);
+    if (chat?.id !== chatId) return;
+    // The open chat is gone: land on its neighbour, or on the empty state.
+    const next = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
+    if (next) {
+      await openChat(next.id, "replace");
+    } else {
+      openRequestId.current += 1;
+      openController.current?.abort();
+      setChat(null);
+      setSidebarOpen(false);
+      updateChatUrl("", "replace");
+    }
+  }
+
   const refreshWorkspace = useCallback(async (
     chatId: string,
     signal?: AbortSignal,
@@ -217,6 +309,8 @@ export function ChatWorkspace() {
     }
   }, []);
 
+  const managedChat = manage ? chats.find((item) => item.id === manage.id) : undefined;
+
   return (
     <div className="ai-chat-workspace">
       <button
@@ -226,31 +320,38 @@ export function ChatWorkspace() {
         tabIndex={sidebarOpen ? 0 : -1}
         type="button"
       />
-      <aside className={`ai-chat-sidebar ${sidebarOpen ? "open" : ""}`} id="ai-chat-sidebar">
+      <aside className={`ai-chat-sidebar ${sidebarOpen ? "open" : ""}`} id="ai-chat-sidebar" ref={sidebarRef}>
         <div className="ai-chat-sidebar-heading">
           <div>
             <span>Practice space</span>
             <h2>Chats</h2>
           </div>
-          <button
-            aria-label="Close chat list"
+          <IconButton
             className="ai-chat-sidebar-close"
+            label="Close chat list"
             onClick={() => setSidebarOpen(false)}
-            type="button"
-          >×</button>
+            variant="ghost"
+          >
+            <CloseIcon />
+          </IconButton>
         </div>
-        <button className="ai-chat-new ai-chat-primary-action" disabled={creating} onClick={() => void createChat()} type="button">New Chat</button>
+        <Button
+          block
+          className="ai-chat-new"
+          icon={<PlusIcon />}
+          loading={creating}
+          onClick={() => void createChat()}
+          variant="primary"
+        >New Chat</Button>
         <nav aria-busy={initialLoading} aria-label="Practice chats" className="ai-chat-list">
           {initialLoading ? (
-            <div className="ai-chat-list-loading" aria-label="Loading chats" role="status">
-              <i /><i /><i />
-            </div>
+            <ListSkeleton label="Loading chats" rows={3} />
           ) : chats.length === 0 ? (
             <p className="ai-chat-list-empty">No chats yet. Start one when you are ready.</p>
           ) : (
             <ul>
               {chats.map((item) => (
-                <li key={item.id}>
+                <li className="ai-chat-list-row" key={item.id}>
                   <button
                     aria-current={chat?.id === item.id ? "page" : undefined}
                     className={chat?.id === item.id ? "ai-chat-list-item active" : "ai-chat-list-item"}
@@ -259,11 +360,24 @@ export function ChatWorkspace() {
                     type="button"
                   >
                     <strong>{item.title}</strong>
-                    <span>
+                    {item.preview && <span className="ai-chat-list-preview">{item.preview}</span>}
+                    <span className="ai-chat-list-meta">
                       {item.messageCount} {item.messageCount === 1 ? "message" : "messages"}
                       {chatListTime(item.updatedAt) ? ` · ${chatListTime(item.updatedAt)}` : ""}
                     </span>
                   </button>
+                  <IconButton
+                    aria-haspopup="dialog"
+                    className="ai-chat-list-menu"
+                    label={`Actions for ${item.title}`}
+                    onClick={() => {
+                      setManageError("");
+                      setManage({ id: item.id, mode: "menu" });
+                    }}
+                    variant="ghost"
+                  >
+                    <MoreIcon />
+                  </IconButton>
                 </li>
               ))}
             </ul>
@@ -272,18 +386,37 @@ export function ChatWorkspace() {
       </aside>
 
       <section aria-busy={Boolean(openingChatId)} className="ai-chat-main">
-        {error && <p className="ai-chat-inline-error ai-chat-workspace-error" role="alert">{error}</p>}
+        {error && (
+          <Notice
+            action={<Button onClick={() => setError("")} variant="ghost">Dismiss</Button>}
+            className="ai-chat-inline-error ai-chat-workspace-error"
+            tone="danger"
+          >
+            {error}
+          </Notice>
+        )}
         {initialLoading ? (
-          <div className="ai-chat-conversation-loading" aria-label="Loading conversation" role="status">
-            <i /><i /><i />
+          <div aria-label="Loading conversation" className="ai-chat-conversation-loading" role="status">
+            <Skeleton className="ai-chat-skeleton-bubble" />
+            <Skeleton className="ai-chat-skeleton-bubble" />
+            <Skeleton className="ai-chat-skeleton-bubble" />
           </div>
         ) : !chat ? (
-          <div className="ai-chat-empty-panel">
-            <span aria-hidden="true" className="ai-chat-empty-icon">✦</span>
-            <h2>Start a conversation</h2>
-            <p>Create a chat, choose a word or phrase, and practise it in a real context.</p>
-            <button className="ai-chat-primary-action" disabled={creating} onClick={() => void createChat()} type="button">New Chat</button>
-          </div>
+          <EmptyState
+            action={(
+              <Button
+                icon={<PlusIcon />}
+                loading={creating}
+                onClick={() => void createChat()}
+                size="lg"
+                variant="primary"
+              >New Chat</Button>
+            )}
+            className="ai-chat-empty-panel"
+            description="Create a chat, choose a word or phrase, and practise it in a real context."
+            icon={<MessageIcon />}
+            title="Start a conversation"
+          />
         ) : (
           <ChatConversation
             chat={chat}
@@ -297,9 +430,26 @@ export function ChatWorkspace() {
           />
         )}
         {openingChatId && chat && openingChatId !== chat.id && (
-          <div className="ai-chat-opening" role="status">Opening chat…</div>
+          <Chip className="ai-chat-opening" role="status"><Spinner /> Opening chat…</Chip>
         )}
       </section>
+
+      {managedChat && manage && (
+        <ChatActionsSheet
+          busy={manageBusy}
+          chat={managedChat}
+          error={manageError}
+          key={managedChat.id}
+          mode={manage.mode}
+          onClose={closeManage}
+          onDelete={() => void deleteChat(managedChat.id)}
+          onModeChange={(mode) => {
+            setManageError("");
+            setManage({ id: managedChat.id, mode });
+          }}
+          onRename={(title) => void renameChat(managedChat.id, title)}
+        />
+      )}
     </div>
   );
 }

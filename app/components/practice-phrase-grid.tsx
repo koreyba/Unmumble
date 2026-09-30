@@ -8,8 +8,9 @@ import {
   shouldVirtualizePracticeList,
 } from "@/lib/practice-list";
 
-const PRACTICE_GRID_COLUMNS = 2;
-const ESTIMATED_PRACTICE_ROW_HEIGHT = 260;
+// Practice phrases are list rows, so the virtual grid is a single column.
+const PRACTICE_GRID_COLUMNS = 1;
+const ESTIMATED_PRACTICE_ROW_HEIGHT = 74;
 
 type PracticePhraseGridProps<T extends { id: string }> = {
   items: readonly T[];

@@ -1,6 +1,8 @@
 "use client";
 
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { BookmarkPlusIcon, CloseIcon, TranslateIcon } from "@/app/components/ai-chat-icons";
+import { Button, IconButton } from "@/app/components/ui";
 import {
   classifyInteractiveSelection,
   isSingleInteractiveEnglishWord,
@@ -175,13 +177,15 @@ function ChatSelectionActionPanel({
     >
       <div className="ai-chat-selection-heading">
         <span>{selectionLabel}</span>
-        <button
-          aria-label="Close selected text actions"
+        <IconButton
           className="ai-chat-selection-close"
           disabled={saving}
+          label="Close selected text actions"
           onClick={onDismiss}
-          type="button"
-        >×</button>
+          variant="ghost"
+        >
+          <CloseIcon />
+        </IconButton>
       </div>
       <blockquote>{selection.text}</blockquote>
       {composition === "mixed" && (
@@ -198,16 +202,22 @@ function ChatSelectionActionPanel({
       {saveError && <p className="ai-chat-selection-error" role="alert">{saveError}</p>}
       {saveMessage && <p className="ai-chat-selection-status" role="status">{saveMessage}</p>}
       <div className="ai-chat-selection-buttons">
-        <button disabled={!canTranslate || translating} onClick={() => void translate()} type="button">
+        <Button
+          disabled={!canTranslate}
+          icon={<TranslateIcon />}
+          loading={translating}
+          onClick={() => void translate()}
+        >
           {translating ? "Translating…" : "Translate"}
-        </button>
-        <button
+        </Button>
+        <Button
           aria-describedby={addLimitMessage ? "ai-chat-add-limit" : undefined}
-          className="primary ai-chat-primary-action"
-          disabled={!canAdd || saving}
+          disabled={!canAdd}
+          icon={<BookmarkPlusIcon />}
+          loading={saving}
           onClick={() => void addToLearning()}
-          type="button"
-        >{saving ? "Adding…" : "Add to learning"}</button>
+          variant="primary"
+        >{saving ? "Adding…" : "Add to learning"}</Button>
       </div>
     </aside>
   );

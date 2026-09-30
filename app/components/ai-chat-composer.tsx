@@ -8,6 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { ExpandIcon, SendIcon, StopIcon, CloseIcon } from "@/app/components/ai-chat-icons";
+import { Button, IconButton, Notice } from "@/app/components/ui";
 import {
   readComposerSelection,
   restoreComposerSelection,
@@ -25,11 +27,21 @@ type AiChatComposerProps = {
   onSend: () => void | Promise<void>;
   onStop: () => void;
   showRecoverableOutbound: boolean;
-  showRetryFailure: boolean;
   turnBusy: boolean;
   turnControlError: string;
   turnRecoveryNotice: string;
 };
+
+/** The expanded editor sends with the platform's own modifier: ⌘ on Apple devices, Ctrl elsewhere. */
+function sendShortcutLabel() {
+  if (typeof navigator === "undefined") return "Ctrl+Enter";
+  const platform = (navigator as Navigator & { userAgentData?: { platform?: string } })
+    .userAgentData?.platform || navigator.platform || "";
+  return /mac|iphone|ipad|ipod/iu.test(platform) ? "⌘+Enter" : "Ctrl+Enter";
+}
+
+const COMPACT_MAX_HEIGHT = 116;
+const MULTILINE_THRESHOLD = 56;
 
 export function AiChatComposer({
   cancelling,
@@ -42,12 +54,13 @@ export function AiChatComposer({
   onSend,
   onStop,
   showRecoverableOutbound,
-  showRetryFailure,
   turnBusy,
   turnControlError,
   turnRecoveryNotice,
 }: AiChatComposerProps) {
   const [expanded, setExpanded] = useState(false);
+  // The expand control only earns its space once the draft wraps onto a second line.
+  const [multiline, setMultiline] = useState(false);
   const compactComposer = useRef<HTMLTextAreaElement | null>(null);
   const expandedComposer = useRef<HTMLTextAreaElement | null>(null);
   const composerSelection = useRef<ComposerSelection | null>(null);
@@ -58,7 +71,10 @@ export function AiChatComposer({
     const input = compactComposer.current;
     if (!input) return;
     input.style.height = "auto";
-    input.style.height = `${Math.max(48, Math.min(input.scrollHeight, 112))}px`;
+    input.style.height = `${Math.max(44, Math.min(input.scrollHeight, COMPACT_MAX_HEIGHT))}px`;
+    // Overflowing drafts scroll inside the field; the scrollbar itself stays hidden in CSS.
+    input.style.overflowY = input.scrollHeight > COMPACT_MAX_HEIGHT ? "auto" : "hidden";
+    setMultiline(input.scrollHeight > MULTILINE_THRESHOLD);
   }, [draft]);
 
   useEffect(() => {
@@ -112,6 +128,11 @@ export function AiChatComposer({
   function submit(event: FormEvent) {
     event.preventDefault();
     void onSend();
+    // A mouse click on Send moves focus onto a button that is replaced while the reply
+    // streams; hand it back to the field. Touch keeps the keyboard state the user chose.
+    if (!window.matchMedia("(pointer: coarse)").matches) {
+      compactComposer.current?.focus({ preventScroll: true });
+    }
   }
 
   function submitExpanded(event: FormEvent) {
@@ -143,32 +164,45 @@ export function AiChatComposer({
     event.currentTarget.form?.requestSubmit();
   }
 
+  const showExpand = Boolean(draft) && multiline;
+  // Only read while the dialog is open, so it never renders during server rendering.
+  const sendShortcut = expanded ? sendShortcutLabel() : "Ctrl+Enter";
+
   return (
     <>
       <div className="ai-chat-composer-region">
-        {!generationConfigured && (
-          <p className="ai-chat-inline-error" role="status">AI generation is not configured on the server.</p>
-        )}
-        {showRetryFailure && (
-          <p className="ai-chat-inline-error" role="alert">The response failed. Retry it below.</p>
-        )}
-        {turnControlError && <p className="ai-chat-inline-error" role="alert">{turnControlError}</p>}
-        {turnRecoveryNotice && <p className="ai-chat-inline-notice" role="status">{turnRecoveryNotice}</p>}
-        {showRecoverableOutbound && (
-          <div className="ai-chat-outbound-recovery" role="alert">
-            <span>Your previous message is available to retry safely. Your current draft is unchanged.</span>
-            <button
-              disabled={turnBusy || !generationConfigured}
-              onClick={onRetryRecoverable}
-              type="button"
-            >Retry message</button>
-          </div>
-        )}
+        <div className="ai-chat-composer-notices">
+          {!generationConfigured && (
+            <Notice className="ai-chat-inline-error" role="status" tone="warning">
+              AI generation is not configured on the server.
+            </Notice>
+          )}
+          {turnControlError && (
+            <Notice className="ai-chat-inline-error" tone="danger">{turnControlError}</Notice>
+          )}
+          {turnRecoveryNotice && (
+            <Notice className="ai-chat-inline-notice" tone="info">{turnRecoveryNotice}</Notice>
+          )}
+          {showRecoverableOutbound && (
+            <Notice
+              action={(
+                <Button
+                  disabled={turnBusy || !generationConfigured}
+                  onClick={onRetryRecoverable}
+                >Retry message</Button>
+              )}
+              className="ai-chat-outbound-recovery"
+              tone="danger"
+            >
+              Your previous message is available to retry safely. Your current draft is unchanged.
+            </Notice>
+          )}
+        </div>
         <form className="ai-chat-composer" onSubmit={submit}>
           <label className="ai-chat-visually-hidden" htmlFor={`ai-chat-message-${chatId}`}>
             Your practice request
           </label>
-          <div className={`ai-chat-composer-field ${draft ? "has-draft" : ""}`}>
+          <div className={`ai-chat-composer-field ${draft ? "has-draft" : ""} ${showExpand ? "is-multiline" : ""}`}>
             <textarea
               disabled={!generationConfigured}
               id={`ai-chat-message-${chatId}`}
@@ -180,43 +214,46 @@ export function AiChatComposer({
               rows={1}
               value={draft}
             />
-            {draft && (
-              <button
+            {showExpand && (
+              <IconButton
                 aria-expanded={expanded}
                 aria-haspopup="dialog"
-                aria-label="Expand composer"
                 className="ai-chat-composer-expand"
+                label="Expand composer"
                 onClick={() => {
                   composerSelection.current = readComposerSelection(compactComposer.current);
                   onExpand();
                   setExpanded(true);
                 }}
-                type="button"
+                variant="ghost"
               >
-                <span aria-hidden="true">⤢</span>
-              </button>
+                <ExpandIcon />
+              </IconButton>
             )}
           </div>
           {turnBusy ? (
-            <button
-              aria-busy={cancelling}
-              aria-label={cancelling ? "Stopping response" : "Stop response"}
+            <IconButton
               className="ai-chat-stop"
               disabled={cancelling}
+              label={cancelling ? "Stopping response" : "Stop response"}
+              loading={cancelling}
               onClick={onStop}
-              type="button"
+              pill
+              variant="danger"
             >
-              <span aria-hidden="true">{cancelling ? "…" : "■"}</span>
-            </button>
+              <StopIcon />
+            </IconButton>
           ) : (
-            <button
-              aria-label="Send message"
+            <IconButton
               className="ai-chat-send"
               disabled={!draft.trim() || !generationConfigured}
+              label="Send message"
+              pill
               type="submit"
+              variant="primary"
             >
-              <span aria-hidden="true">↑</span>
-            </button>
+              <SendIcon />
+            </IconButton>
           )}
         </form>
         <p className="ai-chat-composer-hint">Enter to send · Shift+Enter for a new line</p>
@@ -235,14 +272,15 @@ export function AiChatComposer({
               <span>AI vocabulary practice</span>
               <h2 id={`ai-chat-composer-dialog-title-${chatId}`}>Compose message</h2>
             </div>
-            <button
-              aria-label="Close expanded composer"
+            <IconButton
+              label="Close expanded composer"
               onClick={() => {
                 composerSelection.current = readComposerSelection(expandedComposer.current);
                 setExpanded(false);
               }}
-              type="button"
-            >×</button>
+            >
+              <CloseIcon />
+            </IconButton>
           </header>
           <form className="ai-chat-composer-dialog-editor" onSubmit={submitExpanded}>
             <label className="ai-chat-visually-hidden" htmlFor={`ai-chat-expanded-message-${chatId}`}>
@@ -259,11 +297,18 @@ export function AiChatComposer({
             />
             <footer>
               <span>{draft.length.toLocaleString()} / 4,000</span>
-              <span>⌘/Ctrl+Enter to send</span>
-              <button disabled={!draft.trim() || turnBusy || !generationConfigured} type="submit">
+              <span>{sendShortcut} to send</span>
+              <Button
+                aria-keyshortcuts="Control+Enter Meta+Enter"
+                disabled={!draft.trim() || turnBusy || !generationConfigured}
+                size="lg"
+                title={`Send message (${sendShortcut})`}
+                type="submit"
+                variant="primary"
+              >
                 Send message
-                <span aria-hidden="true">↑</span>
-              </button>
+                <SendIcon />
+              </Button>
             </footer>
           </form>
         </div>

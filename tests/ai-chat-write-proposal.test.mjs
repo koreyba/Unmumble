@@ -251,7 +251,9 @@ test("a pending write proposal is an accessible inline confirmation", async () =
     assert.deepEqual(buttons.map((button) => button.textContent), ["Cancel", "Confirm"]);
     for (const button of buttons) {
       assert.equal(button.type, "button");
-      assert.equal(button.style.minHeight, "44px");
+      // Shared kit Button at its default size is the 44px touch target.
+      assert.ok(button.classList.contains("ui-button"));
+      assert.ok(!button.classList.contains("ui-button--sm"));
       assert.equal(button.disabled, false);
     }
 
@@ -287,7 +289,8 @@ test("a long proposal expands inline while exposing its disclosure state", async
     assert.equal(toggle?.textContent, "Show 2 more");
     assert.equal(toggle?.getAttribute("aria-expanded"), "false");
     assert.equal(toggle?.getAttribute("aria-controls"), list?.id);
-    assert.equal(toggle?.style.minHeight, "44px");
+    assert.ok(toggle?.classList.contains("ui-button"));
+    assert.ok(!toggle?.classList.contains("ui-button--sm"));
 
     await act(async () => toggle.click());
     assert.equal(list?.querySelectorAll("li").length, 5);

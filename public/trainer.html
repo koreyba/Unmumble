@@ -79,8 +79,8 @@
 
     /*
      * Stage: learning workspace + media.
-     * One column below 1100px (workspace first, media after). From 1100px the media column sits on the
-     * left (about 60%) and stays in view under the site navigation while the workspace on the right scrolls.
+     * One column at every width: the workspace card (source, example tools, captions, controls) sits above
+     * the media card, and both cards use the full page width.
      */
     .trainer-stage {
       display: grid;
@@ -405,6 +405,7 @@
     }
 
     /* ── Player controls ── */
+    /* Desktop (from 1100px): one centred row of icon buttons; narrower screens split it in two rows below. */
     .player-controls {
       display: flex;
       flex-wrap: nowrap;
@@ -424,7 +425,9 @@
     .player-controls .player-nav { flex: 0 0 var(--control-md); padding: 0; }
     .player-nav .button-label { display: none; }
 
-    .player-play { padding: 0 22px; }
+    /* Play/Pause is icon-only (the name is aria-label + title) and a little wider than its neighbours. */
+    .player-controls .player-play { min-width: 68px; padding: 0 20px; }
+    .player-play .button-icon { width: 22px; height: 22px; }
     .player-play .button-icon svg { fill: currentcolor; }
 
     .control-select {
@@ -656,16 +659,16 @@
     /* A failed load is not "still loading": stop the placeholder shimmer once an error is shown. */
     .trainer-stage:has(.status.error) #yg-widget-0:empty { animation: none; }
 
-    /* ── Layout ── */
-    /* A narrow workspace (phones, tablets, and the right column of the two-column desktop) splits the bar in two rows. */
-    @media (max-width: 860px), (min-width: 1100px) {
-      /* Two rows: transport (video < caption > play < caption > video) above the practice tools. */
+    /* ── Layout: tablets and phones ── */
+    /* Below 1100px the bar is two rows: transport (video < caption > play > caption > video) above the tools. */
+    @media (max-width: 1099px) {
       .player-controls { flex-wrap: wrap; justify-content: stretch; gap: 0 8px; }
       .player-controls::before { content: ""; order: 6; flex: 0 0 100%; height: 0; }
       .player-controls .ui-button,
       .control-select { flex: 1 1 auto; }
+      .player-controls .ui-button { --ui-font-size: 13px; padding: 0 8px; gap: 6px; }
       .player-controls .player-nav { flex: 1 1 0; }
-      #playPauseBtn { flex: 2.4 1 0; }
+      .player-controls .player-play { flex: 1.6 1 0; min-width: 64px; padding: 0 8px; }
       #prevVideoBtn { order: 1; }
       #prevCaptionBtn { order: 2; }
       #playPauseBtn { order: 3; }
@@ -675,8 +678,7 @@
       #repeatCaptionBtn { order: 8; }
       #accentControl { order: 9; }
       #slowPlaybackBtn { order: 10; }
-      #replayBtn, #repeatCaptionBtn, #accentControl, #slowPlaybackBtn { margin-top: 8px; }
-      .player-controls .ui-button { --ui-font-size: 13px; padding: 0 8px; gap: 6px; }
+      #replayBtn, #repeatCaptionBtn, #accentControl, #slowPlaybackBtn { margin-top: 6px; }
       .control-select .ui-select { min-width: 0; padding: 0 26px 0 12px; font-size: 13px; }
     }
 
@@ -692,37 +694,54 @@
       .no-results { order: 6; }
       .caption-navigation-status { order: 7; }
       .player-controls { order: 8; }
+      /* Slow is icon-only on phones (aria-label + title stay; the pressed ring shows the state). */
+      .slow-playback-btn .button-label { display: none; }
     }
 
+    /* Phones: a compact workspace so the video starts as high as possible. */
     @media (max-width: 560px) {
       .app { padding-left: 8px; padding-right: 8px; }
-      .learning-workspace { padding: 10px; }
+      .viewer-header { gap: 10px; padding: 6px 0; }
+      .trainer-stage { gap: 8px; padding-top: 0; }
+      .learning-workspace { padding: 8px; gap: 8px; }
+      .source-row { padding-bottom: 0; border-bottom: 0; }
+      .caption-box { padding: 8px 12px 10px; }
+      .caption-label { flex-wrap: nowrap; margin-bottom: 4px; }
+      .caption-label > span:first-child { flex: 0 0 auto; }
+      .caption-label > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .widget-frame, #youglishWidgetHost { min-height: 205px; }
       #youglishWidgetHost iframe { min-height: 205px; }
       .tatoeba-player { min-height: 205px; padding: 18px; }
       .segmented .ui-button { padding: 0 12px; }
     }
 
-    /* Example tools and selection actions wrap the same way on phones and in the desktop side column. */
-    @media (max-width: 560px), (min-width: 1100px) {
+    /* Very narrow phones: Replay and Repeat keep only their icons so row 2 stays on one line. */
+    @media (max-width: 359px) {
+      #replayBtn .button-label, #repeatCaptionBtn .button-label { display: none; }
+    }
+
+    /*
+     * Phones: All|Saved fills the first row; Save clip and Continue in video share the second in two equal
+     * columns (Save clip takes the whole row while Continue in video is hidden).
+     */
+    @media (max-width: 560px) {
+      .example-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .example-settings { grid-column: 1 / -1; }
+      .example-mode { display: flex; width: 100%; }
       .example-actions { display: contents; }
-      .example-actions .ui-button { flex: 1 1 auto; }
-      #watchFullVideoBtn { flex-basis: 100%; }
+      .example-actions .ui-button { min-width: 0; padding: 0 10px; gap: 6px; }
+      .example-actions:has(#watchFullVideoBtn[hidden]) #saveExampleBtn { grid-column: 1 / -1; }
       .caption-actions .ui-button { flex: 1 1 0; padding: 0 10px; }
     }
 
-    /* Two columns: video on the left stays in view under the navigation, workspace scrolls on the right. */
-    @media (min-width: 1100px) {
-      .trainer-stage {
-        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-        grid-template-areas: "media workspace";
-        gap: 20px;
-      }
-      .media-panel {
-        position: sticky;
-        top: calc(var(--site-navigation-offset, 0px) + 12px);
-      }
-      .caption-text { font-size: 22px; }
+    /* The longer Continue in video label gets a little more room than Save clip on the narrowest phones. */
+    @media (max-width: 374px) {
+      .example-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+    }
+
+    /* At 320px the two example buttons keep just their labels. */
+    @media (max-width: 339px) {
+      .example-actions .button-icon { display: none; }
     }
   </style>
   <link rel="stylesheet" href="/app-theme.css" />
@@ -883,7 +902,6 @@
           <div class="control-group media-navigation" aria-label="Playback controls">
             <button id="playPauseBtn" class="player-play ui-button ui-button--primary" type="button" aria-label="Pause playback" title="Pause playback">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M8 5v14M16 5v14" /></svg></span>
-              <span class="button-label">Pause</span>
             </button>
             <button id="replayBtn" class="ui-button" type="button" aria-label="Replay phrase" title="Replay phrase">
               <span class="button-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v6h6" /></svg></span>
@@ -1303,18 +1321,13 @@
       iconElement.dataset.icon = iconName;
     }
 
-    function setButton(button, label, iconName) {
-      setButtonLabel(button, label);
-      setButtonIcon(button, iconName);
-    }
-
     function renderPlaybackControl() {
       const isPlaying = state.source === "tatoeba"
         ? !el.tatoebaAudio.paused
         : playerState === 1;
       const action = isPlaying ? "Pause" : "Play";
       const accessibleLabel = `${action} playback`;
-      setButton(el.playPauseBtn, action, isPlaying ? "pause" : "play");
+      setButtonIcon(el.playPauseBtn, isPlaying ? "pause" : "play");
       el.playPauseBtn.setAttribute("aria-label", accessibleLabel);
       el.playPauseBtn.title = accessibleLabel;
     }

@@ -116,8 +116,8 @@ test("unified navigation stays on top for desktop and moves to the bottom on mob
   assert.match(styles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
   assert.match(styles, /\.site-primary-link \{[\s\S]*?min-height: 50px;/);
-  // The two-column desktop Trainer keeps its media column just under the sticky navigation.
-  assert.match(trainer, /top: calc\(var\(--site-navigation-offset, 0px\) \+ 12px\)/);
+  // The Trainer body must not become a scroll container, or the sticky navigation would never stick.
+  assert.doesNotMatch(trainer, /body \{[^}]*overflow-x: hidden/);
 });
 
 test("Library catalogs new phrases while Practice owns the learning queues", async () => {
@@ -589,11 +589,12 @@ test("trainer keeps primary controls compact across desktop and mobile", async (
   );
 
   assert.match(trainer, /\.control-group \{\s*display: contents;/);
-  assert.match(trainer, /@media \(max-width: 860px\)[\s\S]*?\.player-controls \.player-nav \{ flex: 1 1 0; \}/);
+  assert.match(trainer, /@media \(max-width: 1099px\)[\s\S]*?\.player-controls \.player-nav \{ flex: 1 1 0; \}/);
   assert.match(trainer, /class="caption-navigation-status"/);
   assert.doesNotMatch(trainer, /id="captionNavigationHint" class="control-group-hint"/);
-  // Narrow screens keep 44px targets by splitting the bar into transport and tools rows.
-  assert.match(trainer, /@media \(max-width: 860px\)[\s\S]*?\.player-controls \{ flex-wrap: wrap;[\s\S]*?\.player-controls::before \{ content: ""; order: 6; flex: 0 0 100%;/);
+  // From 1100px the bar is the original single centred row; below that it splits into transport and tools rows.
+  assert.match(trainer, /\.player-controls \{\s*display: flex;\s*flex-wrap: nowrap;\s*align-items: stretch;\s*justify-content: center;/);
+  assert.match(trainer, /@media \(max-width: 1099px\)[\s\S]*?\.player-controls \{ flex-wrap: wrap;[\s\S]*?\.player-controls::before \{ content: ""; order: 6; flex: 0 0 100%;/);
   assert.match(trainer, /\.player-nav \{ flex: 0 0 var\(--control-md\)/);
   assert.doesNotMatch(trainer, /\.player-controls\.caption-controls-hidden/);
   assert.match(trainer, /\.example-tools \{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;/);
@@ -646,8 +647,28 @@ test("trainer controls use one polished visual system", async () => {
   assert.match(trainer, /\.player-play \.button-icon svg \{ fill: currentcolor; \}/);
   assert.match(
     trainer,
-    /@media \(max-width: 860px\)[\s\S]*?\.control-select \.ui-select \{ min-width: 0; padding: 0 26px 0 12px; font-size: 13px; \}/,
+    /@media \(max-width: 1099px\)[\s\S]*?\.control-select \.ui-select \{ min-width: 0; padding: 0 26px 0 12px; font-size: 13px; \}/,
   );
+});
+
+test("Play/Pause is icon-only everywhere and Slow is icon-only on phones", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  const play = trainer.match(/<button id="playPauseBtn"[\s\S]*?<\/button>/)[0];
+  assert.match(play, /aria-label="Pause playback" title="Pause playback"/);
+  assert.doesNotMatch(play, /button-label/, "the name comes from aria-label and title");
+  assert.match(trainer, /setButtonIcon\(el\.playPauseBtn, isPlaying \? "pause" : "play"\);/);
+  assert.match(trainer, /el\.playPauseBtn\.setAttribute\("aria-label", accessibleLabel\);\s*el\.playPauseBtn\.title = accessibleLabel;/);
+  assert.doesNotMatch(trainer, /setButtonLabel\(el\.playPauseBtn|function setButton\(/);
+  assert.match(trainer, /\.player-controls \.player-play \{ min-width: 68px; padding: 0 20px; \}/);
+  // Slow keeps aria-label/title and its pressed ring; only the visible word goes away on phones.
+  assert.match(trainer, /id="slowPlaybackBtn" class="slow-playback-btn ui-button" type="button" aria-label="Slow playback" title="Slow playback"/);
+  assert.match(trainer, /@media \(max-width: 760px\) \{[\s\S]*?\.slow-playback-btn \.button-label \{ display: none; \}/);
+  // Row 2 (Replay, Repeat, accent, Slow) stays on one line; the narrowest phones keep only icons for Replay and Repeat.
+  assert.match(trainer, /@media \(max-width: 359px\) \{\s*#replayBtn \.button-label, #repeatCaptionBtn \.button-label \{ display: none; \}/);
 });
 
 test("mobile trainer puts example choices and captions before controls and media", async () => {
@@ -666,7 +687,7 @@ test("mobile trainer puts example choices and captions before controls and media
   );
 });
 
-test("trainer is one column below 1100px with media after the workspace and two columns from 1100px", async () => {
+test("trainer is one full-width column with the controls above the video", async () => {
   const trainer = await readFile(
     new URL("../public/trainer.html", import.meta.url),
     "utf8",
@@ -686,22 +707,40 @@ test("trainer is one column below 1100px with media after the workspace and two 
   assert.ok(watchFullVideo < captions && captions < controls && controls < media);
   assert.ok(media < mediaFrame);
 
-  // Base (phones, tablets, small desktops): one column, workspace then media.
+  // One column at every width, both cards on the full page width (.app is 1240px at most).
   assert.match(
     trainer,
     /\.trainer-stage \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-areas: "workspace" "media";/,
   );
-  // From 1100px: media (about 60%) on the left and sticky under the navigation, workspace on the right.
-  assert.match(
-    trainer,
-    /@media \(min-width: 1100px\) \{\s*\.trainer-stage \{\s*grid-template-columns: minmax\(0, 3fr\) minmax\(0, 2fr\);\s*grid-template-areas: "media workspace";[\s\S]*?\.media-panel \{\s*position: sticky;\s*top: calc\(var\(--site-navigation-offset, 0px\) \+ 12px\);/,
-  );
-  // The narrow right column uses the same two-row control bar and wrapping example tools as phones.
-  assert.match(trainer, /@media \(max-width: 860px\), \(min-width: 1100px\) \{/);
-  assert.match(trainer, /@media \(max-width: 560px\), \(min-width: 1100px\) \{\s*\.example-actions \{ display: contents; \}/);
-  // The old sticky band is gone, and body must not become a scroll container (it would break every sticky).
+  assert.match(trainer, /\.app \{\s*width: min\(1240px, 100%\);\s*margin: 0 auto;/);
+  // No side-by-side layout, no narrower centred column, no viewport-height sizing of the cards.
+  assert.doesNotMatch(trainer, /grid-template-areas: "media workspace"|minmax\(0, 3fr\)|position: sticky;/);
+  assert.doesNotMatch(trainer, /--trainer-column|--trainer-chrome|--trainer-video-ratio|100dvh|justify-self: center/);
+  assert.doesNotMatch(trainer, /\.media-panel \{[^}]*(?<![-\w])width:/);
+  // The old sticky band is gone, and body must not become a scroll container (it would break the sticky navigation).
   assert.doesNotMatch(trainer, /sticky-stage/);
   assert.doesNotMatch(trainer, /body \{[^}]*overflow-x: hidden/);
+});
+
+test("phones get a compact workspace: paired example buttons, hint on the label line, tight padding", async () => {
+  const trainer = await readFile(
+    new URL("../public/trainer.html", import.meta.url),
+    "utf8",
+  );
+
+  const phones = trainer.match(/@media \(max-width: 560px\) \{\s*\.app \{ padding-left: 8px; padding-right: 8px; \}[\s\S]*?\n    \}/)?.[0] || "";
+  assert.match(phones, /\.viewer-header \{ gap: 10px; padding: 6px 0; \}/);
+  assert.match(phones, /\.learning-workspace \{ padding: 8px; gap: 8px; \}/);
+  assert.match(phones, /\.source-row \{ padding-bottom: 0; border-bottom: 0; \}/);
+  assert.match(phones, /\.caption-label \{ flex-wrap: nowrap; margin-bottom: 4px; \}/);
+  assert.match(phones, /text-overflow: ellipsis; white-space: nowrap;/);
+  // All|Saved on its own row; Save clip and Continue in video share the next one in two equal columns.
+  assert.match(
+    trainer,
+    /@media \(max-width: 560px\) \{\s*\.example-tools \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 8px; \}\s*\.example-settings \{ grid-column: 1 \/ -1; \}/,
+  );
+  assert.match(trainer, /\.example-actions:has\(#watchFullVideoBtn\[hidden\]\) #saveExampleBtn \{ grid-column: 1 \/ -1; \}/);
+  assert.match(trainer, /@media \(max-width: 374px\) \{\s*\.example-tools \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.3fr\); \}/);
 });
 
 test("the hidden phrase-list panel is gone and provider terms stay visible in a small footer", async () => {
@@ -827,15 +866,15 @@ test("mobile example controls align to two columns and collapse Tatoeba actions"
   const ui = await readFile(new URL("../public/ui.css", import.meta.url), "utf8");
   assert.match(ui, /@media \(max-width: 760px\), \(pointer: coarse\) \{\s*\.ui-button--sm \{ --ui-height: var\(--control-md\); \}/);
   assert.match(trainer, /\.segmented \.ui-button \{\s*flex: 1 0 auto;/);
-  // On phones the example segments and Save clip share one wrapping row; Continue in video takes its own row
-  // and simply disappears (hidden) when there is nothing to continue.
+  // Wider screens: one wrapping row. Phones: All|Saved, then Save clip and Continue in video side by side;
+  // Continue in video simply disappears (hidden) when there is nothing to continue and Save clip takes the row.
   assert.match(
     trainer,
     /\.example-tools \{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;[\s\S]*?\.example-settings \{ flex: 0 0 auto; \}/,
   );
   assert.match(
     trainer,
-    /@media \(max-width: 560px\)[\s\S]*?\.example-actions \{ display: contents; \}\s*\.example-actions \.ui-button \{ flex: 1 1 auto; \}\s*#watchFullVideoBtn \{ flex-basis: 100%; \}/,
+    /@media \(max-width: 560px\) \{\s*\.example-tools \{ display: grid;[\s\S]*?\.example-actions \{ display: contents; \}\s*\.example-actions \.ui-button \{ min-width: 0; padding: 0 10px; gap: 6px; \}/,
   );
   assert.match(await readFile(new URL("../public/app-theme.css", import.meta.url), "utf8"), /\[hidden\] \{ display: none !important; \}/);
   assert.match(trainer, /const validYouTubeVideo = isYouGlish && \/\^\[A-Za-z0-9_-\]\{11\}\$\//);

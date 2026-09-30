@@ -825,12 +825,13 @@ body:has(.ai-chat-workspace) .feedback-trigger {
   .ai-chat-conversation,
   .ai-chat-main > .ai-chat-empty-panel.ui-empty,
   .ai-chat-conversation-loading { border-radius: var(--radius-lg); }
-  .ai-chat-conversation-header { min-height: 64px; padding: 10px 12px; }
   .ai-chat-conversation-header h2 { font-size: 17px; }
   .ai-chat-conversation-label { display: none; }
 
   /* On a phone the status is a one-line subtitle under the title, not a bare dot. */
   .ai-chat-conversation-header {
+    min-height: 64px;
+    padding: 10px 12px;
     grid-template-areas: "chats title" "chats status";
     grid-template-columns: auto minmax(0, 1fr);
     align-content: center;

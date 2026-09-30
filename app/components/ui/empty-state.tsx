@@ -26,7 +26,7 @@ export function EmptyState({
 }
 
 /** Loading stand-in for a list: a stack of shimmering rows. */
-export function ListSkeleton({ rows = 4, label = "Loading" }: { rows?: number; label?: string }) {
+export function ListSkeleton({ rows = 4, label = "Loading" }: Readonly<{ rows?: number; label?: string }>) {
   return (
     <div aria-busy="true" aria-label={label} className="ui-list-skeleton" role="status">
       {Array.from({ length: rows }, (_, index) => (

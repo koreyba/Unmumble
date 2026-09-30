@@ -317,6 +317,51 @@ export default function VideosPage() {
     }
   }
 
+  function renderSavedVideos() {
+    if (loading) return <ListSkeleton label="Loading videos" rows={2} />;
+    if (videos.length === 0) {
+      return (
+        <EmptyState
+          action={<ButtonLink href="/practice" variant="primary">Open Practice</ButtonLink>}
+          description="Choose Watch full video on a YouGlish result to add the first one."
+          title="No videos watched yet"
+        />
+      );
+    }
+    return (
+<div className="video-grid">
+      {videos.map((video, index) => {
+        const savedProgress = progress[video.videoId]?.seconds || 0;
+        return (
+          <Card as="article" className="video-card ui-rise" interactive key={video.id} style={{ "--ui-index": Math.min(index, 6) } as React.CSSProperties}>
+            <button
+              aria-label={`Continue ${video.originQuery || "YouTube video"}`}
+              className="video-thumbnail"
+              onClick={() => selectVideo(video)}
+              style={{ backgroundImage: `url(${youtubeThumbnailUrl(video.videoId)})` }}
+              type="button"
+            >
+              <span aria-hidden="true" className="video-thumbnail__play"><PlayIcon size={22} /></span>
+            </button>
+            <div className="video-card-body">
+              <h3>{video.originQuery || "YouTube video"}</h3>
+              {video.originCaption && <p>{video.originCaption}</p>}
+              <div className="video-card-meta">
+                <span>{savedProgress > 0 ? `Resume at ${formatProgress(savedProgress)}` : "Not started"}</span>
+                <span>Last opened {new Date(video.updatedAt).toLocaleDateString()}</span>
+              </div>
+              <div className="video-card-actions">
+                <Button onClick={() => selectVideo(video)} variant="primary">Continue</Button>
+                <Button disabled={busyId === video.id} onClick={() => void removeVideo(video)} quietDanger>Remove</Button>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+    );
+  }
+
   return (
     <>
       <SiteNavigation
@@ -353,44 +398,7 @@ export default function VideosPage() {
             <p>{videos.length} watched {videos.length === 1 ? "video" : "videos"}</p>
           </div>
 
-          {loading ? <ListSkeleton label="Loading videos" rows={2} /> : videos.length === 0 ? (
-            <EmptyState
-              action={<ButtonLink href="/practice" variant="primary">Open Practice</ButtonLink>}
-              description="Choose Watch full video on a YouGlish result to add the first one."
-              title="No videos watched yet"
-            />
-          ) : (
-            <div className="video-grid">
-              {videos.map((video, index) => {
-                const savedProgress = progress[video.videoId]?.seconds || 0;
-                return (
-                  <Card as="article" className="video-card ui-rise" interactive key={video.id} style={{ "--ui-index": Math.min(index, 6) } as React.CSSProperties}>
-                    <button
-                      aria-label={`Continue ${video.originQuery || "YouTube video"}`}
-                      className="video-thumbnail"
-                      onClick={() => selectVideo(video)}
-                      style={{ backgroundImage: `url(${youtubeThumbnailUrl(video.videoId)})` }}
-                      type="button"
-                    >
-                      <span aria-hidden="true" className="video-thumbnail__play"><PlayIcon size={22} /></span>
-                    </button>
-                    <div className="video-card-body">
-                      <h3>{video.originQuery || "YouTube video"}</h3>
-                      {video.originCaption && <p>{video.originCaption}</p>}
-                      <div className="video-card-meta">
-                        <span>{savedProgress > 0 ? `Resume at ${formatProgress(savedProgress)}` : "Not started"}</span>
-                        <span>Last opened {new Date(video.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="video-card-actions">
-                        <Button onClick={() => selectVideo(video)} variant="primary">Continue</Button>
-                        <Button disabled={busyId === video.id} onClick={() => void removeVideo(video)} quietDanger>Remove</Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+          {renderSavedVideos()}
         </section>
       </main>
     </>

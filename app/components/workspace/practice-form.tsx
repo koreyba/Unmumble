@@ -14,7 +14,7 @@ export function PracticeForm({
   sortOptions,
   onSortChange,
   filterButton,
-}: {
+}: Readonly<{
   value: string;
   onChange: (value: string) => void;
   busy: boolean;
@@ -23,7 +23,7 @@ export function PracticeForm({
   sortOptions: Array<{ value: PhraseSort; label: string }>;
   onSortChange: (sort: PhraseSort) => void;
   filterButton: ReactNode;
-}) {
+}>) {
   return (
     <form className="practice-form" onSubmit={onSubmit}>
       <label className="sr-only" htmlFor={INPUT_ID}>Search your phrases</label>

@@ -6,7 +6,7 @@ import { ButtonLink } from "@/app/components/ui";
 import { SignedInSiteAccount } from "@/app/components/signed-in-site-account";
 import type { SiteSection } from "@/app/components/site-navigation";
 
-export function DefaultAccountWidget({ active }: { active: SiteSection }) {
+export function DefaultAccountWidget({ active }: Readonly<{ active: SiteSection }>) {
   const [user, setUser] = useState<AccountSessionUser | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function DefaultAccountWidget({ active }: { active: SiteSection }) {
  * The guest call to action. In the navigation bar the label shortens to "Sign in" on phones
  * (the accessible name stays "Sign in with Google"); pass `abbreviate={false}` where there is room.
  */
-export function GuestSignInLink({ returnTo, abbreviate = true }: { returnTo: string; abbreviate?: boolean }) {
+export function GuestSignInLink({ returnTo, abbreviate = true }: Readonly<{ returnTo: string; abbreviate?: boolean }>) {
   return (
     <ButtonLink
       aria-label={abbreviate ? "Sign in with Google" : undefined}

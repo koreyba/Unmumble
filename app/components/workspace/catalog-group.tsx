@@ -9,7 +9,7 @@ export function CatalogGroup({
   help,
   helpOpen,
   children,
-}: {
+}: Readonly<{
   title: string;
   hint: string;
   count: number;
@@ -17,7 +17,7 @@ export function CatalogGroup({
   /** Raises the group above its siblings while its popover is open. */
   helpOpen: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <section aria-label={title} className={cx("catalog-group", helpOpen && "has-open-help")}>
       <header className="catalog-group__header">

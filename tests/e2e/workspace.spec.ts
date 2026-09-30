@@ -63,19 +63,33 @@ test.describe("Library and Practice workspace (guest)", () => {
   });
 
   test("filter counts always match the cards listed, even after adding phrases", async ({ page, isMobile }) => {
-    test.skip(isMobile, "the counts live in the sidebar; the sheet renders the same values");
     await page.goto("/library");
     const rows = page.locator(".phrase-row");
     await expect(rows.first()).toBeVisible();
-    const formatCount = page.locator(".workspace-sidebar .filter-option.is-active .filter-option__count").first();
 
-    await expect(formatCount).toHaveText(String(await rows.count()));
-    const elisionCount = Number(await page.locator(".filter-option--mechanism", { hasText: "Elision" }).locator(".filter-option__count").innerText());
-    await expect(page.locator(".catalog-group", { hasText: "Elision" }).first().locator(".phrase-row")).toHaveCount(elisionCount);
+    // The counts live in the sidebar on desktop and in the filter sheet on phones.
+    const readCounts = async () => {
+      const trigger = page.getByRole("button", { name: /Open filters/ });
+      if (isMobile) await trigger.click();
+      const panel = isMobile ? page.getByRole("dialog", { name: "Filters" }) : page.locator(".workspace-sidebar");
+      const format = Number(await panel.locator(".filter-option.is-active .filter-option__count").first().innerText());
+      const elision = Number(await panel.locator(".filter-option--mechanism", { hasText: "Elision" }).locator(".filter-option__count").innerText());
+      if (isMobile) {
+        await page.keyboard.press("Escape");
+        await expect(panel).toHaveCount(0);
+      }
+      return { format, elision };
+    };
+
+    const before = await readCounts();
+    expect(before.format).toBe(await rows.count());
+    await expect(page.locator(".catalog-group", { hasText: "Elision" }).first().locator(".phrase-row")).toHaveCount(before.elision);
 
     await page.locator(".phrase-row--catalog").first().getByRole("button", { name: "Add to Learn" }).click();
     await expect(page.locator(".phrase-row__added")).toHaveCount(1);
-    await expect(formatCount).toHaveText(String(await rows.count()));
+    const after = await readCounts();
+    expect(after).toEqual(before);
+    expect(after.format).toBe(await rows.count());
   });
 
   test("mechanism explanations open in a popover and close with Escape", async ({ page }) => {

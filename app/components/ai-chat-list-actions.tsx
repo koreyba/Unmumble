@@ -7,8 +7,8 @@ import { AI_CHAT_TITLE_MAX_CHARACTERS } from "@/lib/ai-chat/contracts";
 
 export type ChatActionMode = "menu" | "rename" | "delete";
 
-type ChatActionsSheetProps = {
-  chat: { id: string; title: string; messageCount: number };
+type ChatActionsSheetProps = Readonly<{
+  chat: Readonly<{ id: string; title: string; messageCount: number }>;
   mode: ChatActionMode;
   busy: boolean;
   error: string;
@@ -16,7 +16,7 @@ type ChatActionsSheetProps = {
   onClose: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
-};
+}>;
 
 /**
  * Row actions for one chat, shown in the shared bottom sheet so the same dialog

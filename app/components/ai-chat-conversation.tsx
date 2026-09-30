@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ReactNode,
   type UIEvent as ReactUIEvent,
   useCallback,
   useEffect,
@@ -25,6 +26,22 @@ import {
 import { aiChatApiError, requestAiChatJson } from "@/lib/ai-chat/client-http";
 import { isSameChatSelection, type ChatTextSelection } from "@/lib/ai-chat/selection";
 
+function generationStatusLabel(cancelling: boolean, status: string, waiting: boolean) {
+  if (cancelling) return "Stopping…";
+  if (status === "submitted") return "Thinking…";
+  if (status === "streaming") return "Responding…";
+  return waiting ? "Waiting…" : "Ready";
+}
+
+function ThinkingIndicator() {
+  return (
+    <span className="ai-chat-thinking">
+      <span aria-hidden="true" className="ai-chat-typing"><i /><i /><i /></span>
+      <span className="ai-chat-visually-hidden">Preparing a response…</span>
+    </span>
+  );
+}
+
 function generationFailureMessage(metadata: AiChatUiMetadata | undefined) {
   return aiChatApiError(
     { error: { code: metadata?.errorCode || undefined } },
@@ -41,7 +58,7 @@ export function ChatConversation({
   onOpenSidebar,
   refresh,
   sidebarOpen,
-}: {
+}: Readonly<{
   chat: AiChatClientDetail;
   draft: string;
   generationConfigured: boolean;
@@ -49,7 +66,7 @@ export function ChatConversation({
   onOpenSidebar: () => void;
   refresh: (signal?: AbortSignal, options?: AiChatRefreshOptions) => Promise<AiChatClientDetail | null>;
   sidebarOpen: boolean;
-}) {
+}>) {
   const [selection, setSelection] = useState<ChatTextSelection | null>(null);
   const [following, setFollowing] = useState(true);
   const [proposalDecision, setProposalDecision] = useState<{
@@ -160,13 +177,7 @@ export function ChatConversation({
           role="status"
           tone={turnBusy ? "warning" : "success"}
         >
-          {cancelling
-            ? "Stopping…"
-            : status === "submitted"
-            ? "Thinking…"
-            : status === "streaming"
-              ? "Responding…"
-              : waitingForResponse ? "Waiting…" : "Ready"}
+          {generationStatusLabel(cancelling, status, waitingForResponse)}
         </Badge>
       </header>
 
@@ -191,38 +202,39 @@ export function ChatConversation({
             const writeProposals = (chat.writeProposals || []).filter(
               (proposal) => proposal.assistantMessageId === message.id,
             );
+            let body: ReactNode = null;
+            if (text) {
+              body = (
+                <div className="ai-chat-message-text" data-chat-message-id={message.id}>
+                  <InteractiveEnglishText
+                    markdown={message.role === "assistant"}
+                    maxSelectionCharacters={500}
+                    onPhraseSelect={(phrase, context, details) => chooseText(
+                      message.id,
+                      phrase,
+                      context,
+                      details.anchor,
+                    )}
+                    onWordActivate={(word, context, details) => chooseText(
+                      message.id,
+                      word,
+                      context,
+                      details.anchor,
+                    )}
+                    text={text}
+                  />
+                </div>
+              );
+            } else if (!failed) {
+              body = <ThinkingIndicator />;
+            }
             return (
               <article
                 className={`ai-chat-message ${message.role}${openingMessageIds.has(message.id) ? "" : " ai-chat-message-enter"}`}
                 key={message.id}
               >
                 <span className="ai-chat-message-role">{message.role === "user" ? "You" : "Unmumble AI"}</span>
-                {text ? (
-                  <div className="ai-chat-message-text" data-chat-message-id={message.id}>
-                    <InteractiveEnglishText
-                      markdown={message.role === "assistant"}
-                      maxSelectionCharacters={500}
-                      onPhraseSelect={(phrase, context, details) => chooseText(
-                        message.id,
-                        phrase,
-                        context,
-                        details.anchor,
-                      )}
-                      onWordActivate={(word, context, details) => chooseText(
-                        message.id,
-                        word,
-                        context,
-                        details.anchor,
-                      )}
-                      text={text}
-                    />
-                  </div>
-                ) : !failed ? (
-                  <span className="ai-chat-thinking">
-                    <span aria-hidden="true" className="ai-chat-typing"><i /><i /><i /></span>
-                    <span className="ai-chat-visually-hidden">Preparing a response…</span>
-                  </span>
-                ) : null}
+                {body}
                 {failed && (
                   <Notice
                     action={(
@@ -268,10 +280,7 @@ export function ChatConversation({
           {status === "submitted" && messages[messages.length - 1]?.role === "user" && (
             <article className="ai-chat-message assistant ai-chat-message-enter">
               <span className="ai-chat-message-role">Unmumble AI</span>
-              <span className="ai-chat-thinking">
-                <span aria-hidden="true" className="ai-chat-typing"><i /><i /><i /></span>
-                <span className="ai-chat-visually-hidden">Preparing a response…</span>
-              </span>
+              <ThinkingIndicator />
             </article>
           )}
           <div aria-hidden="true" className="ai-chat-message-end" ref={messageEnd} />

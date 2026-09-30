@@ -5,17 +5,37 @@ import {
 import { Badge, Button, CheckIcon, IconButton, MoreIcon, PlayIcon, PlusIcon, cx } from "@/app/components/ui";
 import type { Phrase, PhraseStatus, Surface } from "./model";
 
-/** Splits "[connected] sounds" style patterns into underlined sound blocks. */
+type PatternPart = { text: string; linked: boolean };
+
+/** Splits "[connected] sounds" style patterns into plain text and linked sound blocks, in one linear pass. */
+function splitPattern(pattern: string): PatternPart[] {
+  const parts: PatternPart[] = [];
+  let index = 0;
+  while (index < pattern.length) {
+    const open = pattern.indexOf("[", index);
+    const close = open === -1 ? -1 : pattern.indexOf("]", open + 1);
+    if (close === -1) {
+      parts.push({ text: pattern.slice(index), linked: false });
+      break;
+    }
+    if (open > index) parts.push({ text: pattern.slice(index, open), linked: false });
+    // "[]" carries no sound; keep it as plain text and carry on after it.
+    const empty = close === open + 1;
+    parts.push(empty ? { text: "[]", linked: false } : { text: pattern.slice(open + 1, close), linked: true });
+    index = close + 1;
+  }
+  return parts;
+}
+
 function renderPattern(pattern: string) {
-  const parts = pattern.split(/(\[[^\]]+\])/g).filter(Boolean);
-  return parts.map((part, index) =>
-    part.startsWith("[") && part.endsWith("]") ? (
-      <span className="sound-block" key={`${part}-${index}`}>{part.slice(1, -1)}</span>
-    ) : <span key={`${part}-${index}`}>{part}</span>
+  return splitPattern(pattern).map((part, index) =>
+    part.linked
+      ? <span className="sound-block" key={`${part.text}-${index}`}>{part.text}</span>
+      : <span key={`${part.text}-${index}`}>{part.text}</span>
   );
 }
 
-function PracticeAction({ onClick, highlighted }: { onClick: () => void; highlighted: boolean }) {
+function PracticeAction({ onClick, highlighted }: Readonly<{ onClick: () => void; highlighted: boolean }>) {
   return (
     <IconButton
       className="phrase-row__play"
@@ -76,14 +96,88 @@ const forwardAction: Partial<Record<PhraseStatus, { label: string; next: PhraseS
   learnt: { label: "Learn Again", next: "learning_now" },
 };
 
+function rankLabel(phrase: Phrase) {
+  if (phrase.analysis?.rank) return String(phrase.analysis.rank).padStart(2, "0");
+  return phrase.sourceType === "custom" ? "—" : "01";
+}
+
+function LibraryActions({
+  phrase,
+  busy,
+  onChangeStatus,
+}: Readonly<{ phrase: Phrase; busy: boolean; onChangeStatus: (id: string, status: PhraseStatus) => void }>) {
+  if (phrase.status !== "pick") {
+    return (
+      <Badge className="phrase-row__added" title="Added to your list" tone="success">
+        <CheckIcon size={14} />
+        <span className="phrase-row__added-label">Added</span>
+      </Badge>
+    );
+  }
+  return (
+    <Button
+      collapse
+      disabled={busy}
+      icon={<PlusIcon size={16} />}
+      onClick={() => onChangeStatus(phrase.id, "to_learn")}
+      size="sm"
+    >
+      Add to Learn
+    </Button>
+  );
+}
+
+function PracticeActions({
+  phrase,
+  busy,
+  onChangeStatus,
+  onRemove,
+  onOpenMenu,
+}: Readonly<Pick<PhraseRowProps, "phrase" | "busy" | "onChangeStatus" | "onRemove" | "onOpenMenu">>) {
+  const forward = forwardAction[phrase.status];
+  return (
+    <>
+      {forward && (
+        <Button
+          className="desktop-only"
+          disabled={busy}
+          onClick={() => onChangeStatus(phrase.id, forward.next)}
+          size="sm"
+          variant="soft"
+        >
+          {forward.label}
+        </Button>
+      )}
+      {phrase.status !== "pick" && (
+        <Button
+          className="desktop-only"
+          disabled={busy}
+          onClick={() => onRemove(phrase)}
+          quietDanger
+          size="sm"
+        >
+          Remove
+        </Button>
+      )}
+      {phrase.status !== "pick" && (
+        <IconButton
+          className="mobile-only"
+          label="Options"
+          onClick={() => onOpenMenu(phrase.id)}
+          size="sm"
+          variant="ghost"
+        >
+          <MoreIcon size={18} />
+        </IconButton>
+      )}
+    </>
+  );
+}
+
 /** One phrase in the catalog (Library) or in a learning queue (Practice). */
-export function PhraseRow({ phrase, surface, busy, moving, onOpen, onChangeStatus, onRemove, onOpenMenu }: PhraseRowProps) {
+export function PhraseRow({ phrase, surface, busy, moving, onOpen, onChangeStatus, onRemove, onOpenMenu }: Readonly<PhraseRowProps>) {
   const isLibrary = surface === "library";
   const isLearningNow = phrase.status === "learning_now";
-  const rankText = phrase.analysis?.rank
-    ? String(phrase.analysis.rank).padStart(2, "0")
-    : (phrase.sourceType === "custom" ? "—" : "01");
-  const forward = forwardAction[phrase.status];
 
   return (
     <article
@@ -94,7 +188,7 @@ export function PhraseRow({ phrase, surface, busy, moving, onOpen, onChangeStatu
         moving && "is-moving-out",
       )}
     >
-      <span className="phrase-row__rank">{rankText}</span>
+      <span className="phrase-row__rank">{rankLabel(phrase)}</span>
 
       <div className="phrase-row__main">
         <span className="sr-only">{screenReaderKind(phrase, surface)}</span>
@@ -109,60 +203,9 @@ export function PhraseRow({ phrase, surface, busy, moving, onOpen, onChangeStatu
       {isLibrary && <span className="phrase-row__ipa">{phrase.analysis?.ipa}</span>}
 
       <div className="phrase-row__actions">
-        {isLibrary ? (
-          phrase.status === "pick" ? (
-            <Button
-              collapse
-              disabled={busy}
-              icon={<PlusIcon size={16} />}
-              onClick={() => onChangeStatus(phrase.id, "to_learn")}
-              size="sm"
-            >
-              Add to Learn
-            </Button>
-          ) : (
-            <Badge className="phrase-row__added" title="Added to your list" tone="success">
-              <CheckIcon size={14} />
-              <span className="phrase-row__added-label">Added</span>
-            </Badge>
-          )
-        ) : (
-          <>
-            {forward && (
-              <Button
-                className="desktop-only"
-                disabled={busy}
-                onClick={() => onChangeStatus(phrase.id, forward.next)}
-                size="sm"
-                variant="soft"
-              >
-                {forward.label}
-              </Button>
-            )}
-            {phrase.status !== "pick" && (
-              <Button
-                className="desktop-only"
-                disabled={busy}
-                onClick={() => onRemove(phrase)}
-                quietDanger
-                size="sm"
-              >
-                Remove
-              </Button>
-            )}
-            {phrase.status !== "pick" && (
-              <IconButton
-                className="mobile-only"
-                label="Options"
-                onClick={() => onOpenMenu(phrase.id)}
-                size="sm"
-                variant="ghost"
-              >
-                <MoreIcon size={18} />
-              </IconButton>
-            )}
-          </>
-        )}
+        {isLibrary
+          ? <LibraryActions busy={busy} onChangeStatus={onChangeStatus} phrase={phrase} />
+          : <PracticeActions busy={busy} onChangeStatus={onChangeStatus} onOpenMenu={onOpenMenu} onRemove={onRemove} phrase={phrase} />}
       </div>
     </article>
   );

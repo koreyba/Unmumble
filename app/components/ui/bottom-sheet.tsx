@@ -18,7 +18,7 @@ export function BottomSheet({
   label,
   children,
   footer,
-}: {
+}: Readonly<{
   open: boolean;
   onClose: () => void;
   /** Visible heading. Omit and pass `label` when the content brings its own heading. */
@@ -27,7 +27,7 @@ export function BottomSheet({
   label?: string;
   children: ReactNode;
   footer?: ReactNode;
-}) {
+}>) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
@@ -57,7 +57,7 @@ export function BottomSheet({
         return;
       }
       const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const last = focusable.at(-1)!;
       if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) {
         event.preventDefault();
         last.focus();

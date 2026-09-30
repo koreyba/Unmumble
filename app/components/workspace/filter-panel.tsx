@@ -15,7 +15,7 @@ export function MechanismHelp({
   openKey,
   onOpenChange,
   align,
-}: {
+}: Readonly<{
   mechanism: ConnectedSpeechMechanism;
   helpKey: string;
   label: string;
@@ -23,7 +23,7 @@ export function MechanismHelp({
   openKey: string | null;
   onOpenChange: (key: string | null) => void;
   align?: "start" | "end";
-}) {
+}>) {
   const definition = CONNECTED_SPEECH_MECHANISMS[mechanism];
   return (
     <InfoPopover
@@ -39,7 +39,7 @@ export function MechanismHelp({
   );
 }
 
-function OptionCheck({ checked }: { checked: boolean }) {
+function OptionCheck({ checked }: Readonly<{ checked: boolean }>) {
   return (
     <span aria-hidden="true" className={cx("filter-check", checked && "is-checked")}>
       {checked && <CheckIcon size={12} strokeWidth={3} />}
@@ -69,7 +69,7 @@ export type FilterPanelProps = {
 };
 
 /** Filters shared by the desktop sidebar and the mobile bottom sheet. */
-export function FilterPanel(props: FilterPanelProps) {
+export function FilterPanel(props: Readonly<FilterPanelProps>) {
   const {
     surface, variant, activeFormat, formatCounts, onFormatChange, practiceSources, practiceSourceCounts,
     onToggleSource, selectedMechanisms, mechanismCounts, allMechanismsCount, onToggleMechanism,
@@ -194,10 +194,10 @@ export function FilterPanel(props: FilterPanelProps) {
 }
 
 /** Opens the filter sheet on small screens; shows how many filters are active. */
-export function MobileFilterButton({ activeCount, onClick }: { activeCount: number; onClick: () => void }) {
+export function MobileFilterButton({ activeCount, onClick }: Readonly<{ activeCount: number; onClick: () => void }>) {
   return (
     <Button
-      aria-label={`Open filters${activeCount > 0 ? ` (${activeCount} active)` : ""}`}
+      aria-label={activeCount > 0 ? `Open filters (${activeCount} active)` : "Open filters"}
       className="mobile-filter-trigger mobile-only"
       icon={<FilterIcon size={17} />}
       onClick={onClick}

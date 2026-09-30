@@ -12,12 +12,12 @@ export function PracticeTabs({
   counts,
   pulseId,
   onChange,
-}: {
+}: Readonly<{
   active: PhraseStatus;
   counts: Record<PhraseStatus, number>;
   pulseId: string | null;
   onChange: (tab: TabId) => void;
-}) {
+}>) {
   return (
     <>
       <div aria-label="Learning sections" className="practice-chips mobile-only" role="tablist">

@@ -424,12 +424,12 @@ test("the chat preview script stubs the signed-in API in a real browser without 
   assert.match(script, /--headless/);
   assert.match(script, /npm run dev/);
   for (const endpoint of [
-    "/api/session",
-    "/api/ai/chats",
-    "/api/translate",
-    "/api/phrases",
+    String.raw`\/api\/session`,
+    String.raw`\/api\/translate`,
+    String.raw`\/api\/phrases`,
+    String.raw`\/api\/ai\/chats`,
     "write-proposals",
-    "/cancel",
+    String.raw`\/cancel`,
   ]) {
     assert.ok(script.includes(endpoint), endpoint);
   }

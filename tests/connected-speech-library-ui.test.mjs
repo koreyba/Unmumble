@@ -85,7 +85,7 @@ test("dedicated Library exposes formats, mechanisms, search and Add with Undo", 
 test("Library and Practice cards reuse one compact Practice action", async () => {
   const row = await readWorkspaceFile("phrase-row.tsx");
 
-  assert.match(row, /function PracticeAction\(\{ onClick, highlighted \}: \{ onClick: \(\) => void; highlighted: boolean \}\)/);
+  assert.match(row, /function PracticeAction\(\{ onClick, highlighted \}: Readonly<\{ onClick: \(\) => void; highlighted: boolean \}>\)/);
   assert.equal((row.match(/<PracticeAction highlighted=\{isLearningNow\} onClick=\{\(\) => onOpen\(phrase\)\} \/>/g) ?? []).length, 1);
   assert.match(row, /label="Open in trainer"/);
   assert.doesNotMatch(row, /practice-action/);
@@ -156,7 +156,7 @@ test("one SearchIcon from the UI kit serves Library and Practice with no legacy 
 test("MobileFilterButton component is reused across Library and Practice with active count badge", async () => {
   const [workspace, panel] = await Promise.all([readWorkspaceSource(), readWorkspaceFile("filter-panel.tsx")]);
 
-  assert.match(panel, /export function MobileFilterButton\(\{ activeCount, onClick \}: \{ activeCount: number; onClick: \(\) => void \}\)/);
+  assert.match(panel, /export function MobileFilterButton\(\{ activeCount, onClick \}: Readonly<\{ activeCount: number; onClick: \(\) => void \}>\)/);
   assert.match(panel, /activeCount > 0 && <Badge className="filter-count-badge" tone="info">\{activeCount\}<\/Badge>/);
   assert.match(workspace, /const activeFiltersCount = surface === "library"[\s\S]*?\? \(1 \+ selectedMechanisms\.size\)[\s\S]*?: \(selectedMechanisms\.size \+ \(practiceSources\.size < 2 \? 1 : 0\)\);/);
 

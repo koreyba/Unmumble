@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
  * every button variant in both themes. Purely decorative: the owning control
  * carries the accessible name.
  */
-function ChatIcon({ children, size = 20 }: { children: ReactNode; size?: number }) {
+function ChatIcon({ children, size = 20 }: Readonly<{ children: ReactNode; size?: number }>) {
   return (
     <svg
       aria-hidden="true"
@@ -69,7 +69,7 @@ export function BookmarkPlusIcon() {
   return <ChatIcon size={18}><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.6L6 20V5a1 1 0 0 1 1-1zM12 8v5M9.5 10.5h5" /></ChatIcon>;
 }
 
-export function SparkleIcon({ size = 24 }: { size?: number }) {
+export function SparkleIcon({ size = 24 }: Readonly<{ size?: number }>) {
   return (
     <ChatIcon size={size}>
       <path d="M12 3.5c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z" />
@@ -77,7 +77,7 @@ export function SparkleIcon({ size = 24 }: { size?: number }) {
   );
 }
 
-export function MessageIcon({ size = 24 }: { size?: number }) {
+export function MessageIcon({ size = 24 }: Readonly<{ size?: number }>) {
   return <ChatIcon size={size}><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.4-4.3A7.5 7.5 0 1 1 20 11.5z" /></ChatIcon>;
 }
 

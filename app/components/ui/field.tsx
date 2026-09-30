@@ -14,14 +14,14 @@ export function Field({
   error,
   className,
   children,
-}: {
+}: Readonly<{
   label: ReactNode;
   htmlFor: string;
   hint?: ReactNode;
   error?: ReactNode;
   className?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className={cx("ui-field", className)}>
       <label className="ui-field__label" htmlFor={htmlFor}>{label}</label>

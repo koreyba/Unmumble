@@ -15,7 +15,7 @@ export function LibraryToolbar({
   selectedMechanisms,
   onToggleMechanism,
   onClearAll,
-}: {
+}: Readonly<{
   search: string;
   onSearchChange: (value: string) => void;
   sort: PhraseSort;
@@ -26,7 +26,7 @@ export function LibraryToolbar({
   selectedMechanisms: ReadonlySet<ConnectedSpeechMechanism>;
   onToggleMechanism: (mechanism: ConnectedSpeechMechanism) => void;
   onClearAll: () => void;
-}) {
+}>) {
   return (
     <>
       <div className="library-toolbar">

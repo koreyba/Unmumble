@@ -45,10 +45,10 @@ async function postJson<T>(url: string, payload: object, signal?: AbortSignal) {
 export function ChatSelectionActions({
   selection,
   onDismiss,
-}: {
+}: Readonly<{
   selection: ChatTextSelection;
   onDismiss: () => void;
-}) {
+}>) {
   const identity = `${selection.messageId}\u0000${selection.text}\u0000${selection.context}`;
   return (
     <ChatSelectionActionPanel
@@ -62,10 +62,10 @@ export function ChatSelectionActions({
 function ChatSelectionActionPanel({
   selection,
   onDismiss,
-}: {
+}: Readonly<{
   selection: ChatTextSelection;
   onDismiss: () => void;
-}) {
+}>) {
   const [translation, setTranslation] = useState("");
   const [translationError, setTranslationError] = useState("");
   const [translating, setTranslating] = useState(false);

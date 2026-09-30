@@ -6,7 +6,7 @@ import { DefaultAccountWidget } from "./default-account-widget";
 
 export type SiteSection = "home" | "library" | "practice" | "chat" | "videos" | "settings";
 
-function NavIcon({ children }: { children: ReactNode }) {
+function NavIcon({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <svg aria-hidden="true" className="site-primary-link-svg" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
       {children}
@@ -50,10 +50,10 @@ const primaryLinks: Array<{ href: string; label: string; section: SiteSection; i
 export function SiteNavigation({
   active,
   account,
-}: {
+}: Readonly<{
   active: SiteSection;
   account?: ReactNode;
-}) {
+}>) {
   return (
     <header className="site-navigation">
       <div className="site-navigation-inner">

@@ -16,6 +16,11 @@ import {
   type VocabularyPracticeTargetDraft,
 } from "../vocabulary/practice-reader.ts";
 import {
+  AI_CHAT_PREVIEW_CHARACTERS,
+  AI_CHAT_PREVIEW_SOURCE_CHARACTERS,
+  toChatPreview,
+} from "./preview.ts";
+import {
   parseAiChatTerminalTelemetry,
   serializeAiChatTerminalTelemetry,
   type AiChatTerminalTelemetry,
@@ -28,9 +33,7 @@ export const AI_CHAT_PENDING_LEASE_MS = 5 * 60_000;
 export const AI_CHAT_ACCOUNT_LIMIT = 100;
 export const AI_CHAT_LIST_LIMIT = 100;
 export const AI_CHAT_MESSAGE_LIST_LIMIT = 200;
-export const AI_CHAT_PREVIEW_CHARACTERS = 120;
-// The list query hands the repository only this much of the latest message to flatten.
-const AI_CHAT_PREVIEW_SOURCE_CHARACTERS = 600;
+export { AI_CHAT_PREVIEW_CHARACTERS, toChatPreview };
 
 export type AiChatRepositoryErrorCode =
   | "not_found"
@@ -250,27 +253,6 @@ function defaultCreateId(kind: "chat" | "target" | "message" | "attempt") {
   return `${kind}-${crypto.randomUUID()}`;
 }
 
-/**
- * Flattens Markdown into one short plain-text line for chat lists: code blocks
- * are dropped, links keep their label, markers and line breaks disappear.
- */
-export function toChatPreview(source: string | null | undefined) {
-  if (!source) return "";
-  const plain = source
-    .replace(/```[\s\S]*?(?:```|$)/gu, " ")
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/gu, "$1")
-    .replace(/`([^`]*)`/gu, "$1")
-    .replace(/^[ \t]{0,3}(?:#{1,6}|>|[-*+]|\d+[.)])[ \t]+/gmu, "")
-    .replace(/[*~]+/gu, "")
-    .replace(/(^|\s)_+|_+(?=\s|$)/gu, "$1")
-    .replace(/\s+/gu, " ")
-    .trim();
-  const characters = [...plain];
-  return characters.length > AI_CHAT_PREVIEW_CHARACTERS
-    ? `${characters.slice(0, AI_CHAT_PREVIEW_CHARACTERS - 1).join("").trimEnd()}…`
-    : plain;
-}
-
 function mapChat(row: ChatRow): AiChatSummary {
   return {
     id: row.id,
@@ -407,7 +389,8 @@ export function createAiChatRepository(
       repositoryError("target_limit", "Too many practice targets.");
     }
     const resolved: TargetDraft[] = [];
-    for (const target of targets) resolved.push(await resolveTarget(userId, target));
+    // Resolved one by one on purpose: the first invalid target decides the error, deterministically.
+    for (const target of targets) resolved.push(await resolveTarget(userId, target)); // NOSONAR
     return resolved;
   }
 

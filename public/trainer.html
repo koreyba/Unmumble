@@ -805,7 +805,7 @@
       </button>
       <div class="viewer-heading">
         <span>Now listening</span>
-        <h1 id="viewerPhrase" class="viewer-phrase"></h1>
+        <h1 id="viewerPhrase" class="viewer-phrase">Loading phrase…</h1>
       </div>
     </header>
 
@@ -1378,9 +1378,15 @@
     }
 
     function guestId(prefix) {
-      const uuid = window.crypto && typeof window.crypto.randomUUID === "function"
-        ? window.crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const cryptoApi = window.crypto;
+      let uuid;
+      if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+        uuid = cryptoApi.randomUUID();
+      } else {
+        // Insecure contexts lack randomUUID but still provide getRandomValues.
+        const bytes = cryptoApi.getRandomValues(new Uint8Array(12));
+        uuid = `${Date.now().toString(36)}-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+      }
       return `${prefix}-${uuid}`;
     }
 
@@ -2984,7 +2990,7 @@
 
     function playEnterAnimation(element) {
       element.classList.remove("is-entering");
-      void element.offsetWidth;
+      element.getBoundingClientRect(); // force a reflow so the animation restarts
       element.classList.add("is-entering");
     }
 

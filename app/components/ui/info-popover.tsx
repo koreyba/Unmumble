@@ -15,7 +15,7 @@ export function InfoPopover({
   example,
   align = "start",
   children,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** What the trigger explains; forms the accessible name "Explain {label}". */
@@ -24,7 +24,7 @@ export function InfoPopover({
   example?: ReactNode;
   align?: "start" | "end";
   children: ReactNode;
-}) {
+}>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const onOpenChangeRef = useRef(onOpenChange);
 
@@ -68,7 +68,6 @@ export function InfoPopover({
         <div
           aria-label={typeof title === "string" ? title : label}
           className={cx("ui-help__panel", align === "end" && "ui-help__panel--end")}
-          onClick={(event) => event.stopPropagation()}
           role="dialog"
         >
           <div className="ui-help__header">

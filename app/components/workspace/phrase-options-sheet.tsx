@@ -14,13 +14,13 @@ export function PhraseOptionsSheet({
   onClose,
   onChangeStatus,
   onRemove,
-}: {
+}: Readonly<{
   phrase: Phrase | null;
   busy: boolean;
   onClose: () => void;
   onChangeStatus: (id: string, status: PhraseStatus) => void;
   onRemove: (phrase: Phrase) => Promise<void> | void;
-}) {
+}>) {
   const forward = phrase ? forwardActions[phrase.status] : undefined;
 
   return (

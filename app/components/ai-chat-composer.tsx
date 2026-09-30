@@ -16,7 +16,7 @@ import {
   type ComposerSelection,
 } from "@/lib/ai-chat/composer-selection";
 
-type AiChatComposerProps = {
+type AiChatComposerProps = Readonly<{
   cancelling: boolean;
   chatId: string;
   draft: string;
@@ -30,7 +30,7 @@ type AiChatComposerProps = {
   turnBusy: boolean;
   turnControlError: string;
   turnRecoveryNotice: string;
-};
+}>;
 
 /** The expanded editor sends with the platform's own modifier: ⌘ on Apple devices, Ctrl elsewhere. */
 function sendShortcutLabel() {

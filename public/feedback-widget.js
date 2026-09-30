@@ -183,7 +183,7 @@
     const focusable = [...dialog.querySelectorAll(FOCUSABLE_SELECTOR)].filter((element) => element.offsetParent !== null || element === document.activeElement);
     if (focusable.length === 0) return;
     const first = focusable[0];
-    const last = focusable.at(-1);
+    const last = focusable.at(-1) ?? first;
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();

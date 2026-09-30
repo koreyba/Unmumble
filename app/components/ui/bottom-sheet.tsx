@@ -57,7 +57,7 @@ export function BottomSheet({
         return;
       }
       const first = focusable[0];
-      const last = focusable.at(-1)!;
+      const last = focusable.at(-1) ?? first;
       if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) {
         event.preventDefault();
         last.focus();

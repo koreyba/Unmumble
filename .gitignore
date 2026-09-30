@@ -48,3 +48,14 @@ next-env.d.ts
 /.qodana/results/
 /.qodana/report/
 /.qodana/cache/
+
+# Local external skill installs and generated analysis artifacts
+/.agents/skills/cloudflare
+/.agents/skills/workers-best-practices
+/.agents/skills/wrangler
+/.agents/skills/graphify/
+/.agents/rules/graphify.md
+/.agents/workflows/graphify.md
+/.qodana-download/
+/.qodana-extracted/
+/graphify-out/

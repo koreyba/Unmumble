@@ -1,0 +1,4 @@
+interface:
+  display_name: "Product Video"
+  short_description: "Сценарий, съёмка и монтаж продуктовых роликов"
+  default_prompt: "Используй $product-video, чтобы создать ролик по моей идее. Уточни только важные пробелы и используй подходящий пресет."

@@ -93,6 +93,18 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "tdd"
+    },
+    {
+      "registry": "cloudflare/skills",
+      "name": "cloudflare"
+    },
+    {
+      "registry": "cloudflare/skills",
+      "name": "workers-best-practices"
+    },
+    {
+      "registry": "cloudflare/skills",
+      "name": "wrangler"
     }
   ]
 }

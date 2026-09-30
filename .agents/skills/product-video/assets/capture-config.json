@@ -1,0 +1,14 @@
+{
+  "playwrightModule": null,
+  "url": null,
+  "output": null,
+  "layout": "mobile",
+  "device": "iPhone 13",
+  "headless": false,
+  "audio": false,
+  "captureTitle": "Product Video Capture",
+  "scenario": null,
+  "initScript": null,
+  "probeSeconds": 3,
+  "provenance": null
+}

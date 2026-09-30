@@ -1,0 +1,69 @@
+{
+  "name": "unmumble-dynamic",
+  "product": "Unmumble",
+  "language": "en",
+  "purpose": "product_ad",
+  "platforms": [
+    "instagram_reel",
+    "facebook_reel",
+    "threads_video_post"
+  ],
+  "target_duration_seconds": 50,
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "style": {
+    "mood": "energetic, warm, clear",
+    "narrative": "Explain why each step helps, then demonstrate its real result",
+    "scene_pattern": "standalone animated hook and CTA; demonstration and spoken instructions share the same frame",
+    "titles": "large bright words matching narration, readable on a phone",
+    "cursor": "highlight target and show a single click pulse",
+    "zoom": "zoom toward the button, zoom back, click; simplify if result needs focus",
+    "transitions": "short, crisp, motivated by the story",
+    "demo_layout": "reserve space beside or above/below real UI for large animated instructions; keep controls and results readable"
+  },
+  "narration": {
+    "enabled": true,
+    "engine": "kokoro",
+    "voice": "af_bella",
+    "speed": 1.12
+  },
+  "titles": {
+    "enabled": true,
+    "timing": "word"
+  },
+  "music": {
+    "enabled": true,
+    "source": "reuse user-selected track unless asked to replace",
+    "generation_style": "upbeat modern instrumental, subtle groove, no competing vocals",
+    "mix": "duck smoothly under narration and native speech; rise in pauses",
+    "loudness_target_lufs": -14,
+    "true_peak_ceiling_dbtp": -1.0,
+    "selection_policy": "two_local_two_pixabay",
+    "local_candidates": 2,
+    "pixabay_candidates": 2,
+    "approval_required_before_mix": true
+  },
+  "capture": {
+    "enabled": true,
+    "layout": "mobile",
+    "audio": {
+      "enabled": true
+    },
+    "mode": "real_mobile_ui",
+    "device": "iPhone, verified profile chosen for this recording",
+    "viewport": "use device profile; do not resize to export dimensions",
+    "native_speech_speed": "natural"
+  },
+  "cta": {
+    "enabled": true,
+    "brand": "Unmumble",
+    "offer_enabled": true,
+    "offer": "For Free",
+    "verify_offer_before_reuse": true
+  },
+  "delivery": "local_video",
+  "reference_project": "/Users/denys.koreiba/Documents/Unmumble-Reel-2026-09-30/combined/remotion"
+}

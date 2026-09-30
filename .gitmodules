@@ -1,0 +1,4 @@
+[submodule ".agents/vendor/marketingskills"]
+	path = .agents/vendor/marketingskills
+	url = https://github.com/coreyhaines31/marketingskills.git
+	branch = main

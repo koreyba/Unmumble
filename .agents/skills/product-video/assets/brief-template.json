@@ -1,0 +1,64 @@
+{
+  "product": "",
+  "idea": "",
+  "audience": "",
+  "purpose": "",
+  "takeaway": "",
+  "desired_action": null,
+  "language": "",
+  "target_duration_seconds": null,
+  "platforms": [],
+  "style_preset": null,
+  "style_overrides": {},
+  "format": {
+    "width": null,
+    "height": null,
+    "fps": null
+  },
+  "narration": {
+    "enabled": null,
+    "engine": null,
+    "voice": null,
+    "speed": null,
+    "rate_wpm": null
+  },
+  "music": {
+    "enabled": null,
+    "source": null,
+    "description": null,
+    "selection_policy": "two_local_two_pixabay",
+    "local_candidates": 2,
+    "pixabay_candidates": 2,
+    "approval_required_before_mix": true,
+    "selected_track": null,
+    "selection_status": "not_started"
+  },
+  "titles": {
+    "enabled": null,
+    "timing": null
+  },
+  "capture": {
+    "enabled": null,
+    "layout": null,
+    "device": null,
+    "viewport": {
+      "width": null,
+      "height": null
+    },
+    "audio": {
+      "enabled": null
+    }
+  },
+  "cta": {
+    "enabled": null,
+    "text": null,
+    "offer_enabled": null,
+    "offer": null
+  },
+  "materials": [],
+  "must_show": [],
+  "must_say": [],
+  "claims_and_sources": [],
+  "delivery": "local_video",
+  "output_directory": ""
+}

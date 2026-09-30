@@ -10,6 +10,9 @@ const publicAssetPaths = new Set([
   "/og.png",
   "/og-dark.png",
   "/window.svg",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
 ]);
 
 const publicLoginReturnPaths = new Set([

@@ -35,3 +35,10 @@ test("root layout serves the favicon from the current host", async () => {
 
   assert.match(layout, /<link rel="icon" href="\/favicon\.svg\?v=8" type="image\/svg\+xml" \/>/);
 });
+
+test("standalone trainer serves the same favicon as the app pages", async () => {
+  const trainer = await readFile(new URL("../public/trainer.html", import.meta.url), "utf8");
+  const head = trainer.match(/<head>([\s\S]*?)<\/head>/)?.[1] ?? "";
+
+  assert.equal(head.includes('<link rel="icon" href="/favicon.svg?v=8" type="image/svg+xml" />'), true);
+});

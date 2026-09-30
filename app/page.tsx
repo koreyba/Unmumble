@@ -1,6 +1,17 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { socialPreviewMetadata } from "@/lib/social-preview";
 import { SiteNavigation } from "@/app/components/site-navigation";
 import { ArrowUpRightIcon, ButtonLink } from "@/app/components/ui";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string | string[] }>;
+}): Promise<Metadata> {
+  const { preview } = await searchParams;
+  return socialPreviewMetadata(preview);
+}
 
 export default function Home() {
   return (

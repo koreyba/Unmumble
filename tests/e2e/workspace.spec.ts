@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { stubCatalog } from "./helpers/catalog";
 
 async function addFirstCatalogPhrase(page: Page) {
   await page.goto("/library");
@@ -8,6 +9,10 @@ async function addFirstCatalogPhrase(page: Page) {
 }
 
 test.describe("Library and Practice workspace (guest)", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubCatalog(page);
+  });
+
   test("a saved phrase is marked in the catalog and Practice opens on the queue that has it", async ({ page }) => {
     await addFirstCatalogPhrase(page);
 

@@ -1,0 +1,10 @@
+# Unmumble
+
+> Learn to understand spoken English. Listen, check, repeat, and hear real English clearly.
+
+Unmumble is a web app for English listening practice. Learners can explore a public phrase library and practise hearing words in spoken examples. Signing in with Google enables account features such as saving phrases and videos, managing settings, and using AI chat.
+
+## Public pages
+
+- [Home](https://unmumble.online/): Product overview and the listening practice workflow.
+- [Phrase library](https://unmumble.online/library): Public phrases for listening practice.

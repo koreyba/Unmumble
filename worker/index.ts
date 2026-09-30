@@ -14,6 +14,7 @@ import {
 import { ensureUser, migrateLegacyOwnerData } from "@/lib/auth";
 import { d1AppSessionStore } from "@/lib/d1-app-sessions";
 import { guestLoginRedirect, isPublicGuestRequest } from "@/lib/guest-access";
+import { isMissingPageRequest, pageNotFoundResponse } from "@/lib/page-not-found";
 import { AUTHENTICATED_USER_HEADER, encodeUserContext } from "@/lib/user-context";
 
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
@@ -34,6 +35,9 @@ const PUBLIC_DOCUMENT_PATHS = new Set([
   "/videos/",
   "/settings",
   "/settings/",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
 ]);
 const PUBLIC_LONG_CACHE_PATHS = new Set([
   "/caption-navigation.js",
@@ -211,6 +215,8 @@ const worker = {
       const response = await handler.fetch(new Request(request, { headers }), env, ctx);
       return withPublicCache(response, pathname);
     }
+
+    if (isMissingPageRequest(request)) return pageNotFoundResponse(request);
 
     let identity;
     try {

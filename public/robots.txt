@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /logout
+Disallow: /chat
+Disallow: /practice
+Disallow: /trainer
+Disallow: /videos
+Disallow: /settings
+Disallow: /integrations
+
+Sitemap: https://unmumble.online/sitemap.xml

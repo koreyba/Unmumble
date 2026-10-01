@@ -3,12 +3,14 @@
   "url": null,
   "output": null,
   "layout": "mobile",
-  "device": "iPhone 13",
+  "device": "iPhone 16",
   "headless": false,
   "audio": false,
   "captureTitle": "Product Video Capture",
   "scenario": null,
   "initScript": null,
   "probeSeconds": 3,
-  "provenance": null
+  "provenance": null,
+  "recording": "native",
+  "browserType": null
 }

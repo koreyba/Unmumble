@@ -4,15 +4,17 @@ import path from 'node:path';
 // CDP pixels + optional tab audio. Product selectors belong in the scenario.
 export async function start(page, out, {
   audio = false, captureTitle = 'Product Video Capture', provenance = null,
-  readState = async p => ({url: p.url()}), maxWidth = 1170, maxHeight = 2532
+  readState = async p => ({url: p.url()}), maxWidth = 1170, maxHeight = 2532,
+  maxSeconds = 60
 } = {}) {
+  if (!Number.isFinite(maxSeconds) || maxSeconds <= 0) throw new Error('maxSeconds must be positive and finite');
   await fs.mkdir(out);
   await fs.mkdir(path.join(out, 'frames'));
   const cdp = await page.context().newCDPSession(page);
   const epoch = Date.now();
   const now = () => (Date.now() - epoch) / 1000;
   const frames = [], marks = [], writes = [];
-  let index = 0, audioStart = null, stopped = false, writeError = null, stopPromise;
+  let index = 0, audioStart = null, stopped = false, writeError = null, stopPromise, stopTimer;
   const device = await page.evaluate(() => ({
     width: innerWidth, height: innerHeight, dpr: devicePixelRatio,
     ua: navigator.userAgent, scrollWidth: document.documentElement.scrollWidth
@@ -64,7 +66,7 @@ export async function start(page, out, {
       throw error;
     }
   }
-  return {
+  const recording = {
     device,
     get stopped() { return stopped; },
     async mark(id, selector) {
@@ -76,8 +78,11 @@ export async function start(page, out, {
       await page.screenshot({path: path.join(out, `${id}.png`)});
       return row;
     },
-    stop() {
+    stop(reason = 'manual') {
       if (stopPromise) return stopPromise;
+      clearTimeout(stopTimer);
+      const end = now();
+      stopped = true;
       stopPromise = (async () => {
         let audioError;
         try {
@@ -95,8 +100,6 @@ export async function start(page, out, {
             await fs.writeFile(path.join(out, 'tab-audio.webm'), Buffer.from(data, 'base64'));
           }
         } catch (error) {audioError = error;}
-        const end = now();
-        stopped = true;
         await finishFrames();
         if (audioError) throw audioError;
         if (!frames.length) throw new Error('No frames match the measured viewport; inspect the probe before recording again');
@@ -109,6 +112,7 @@ export async function start(page, out, {
         concat += `file 'frames/${frames.at(-1).name}'\n`;
         const receipt = {
           clock: 'seconds from first accepted frame', provenance, device,
+          stoppedBy: reason, maxSeconds,
           audioStart: audioStart === null ? null : audioStart - first,
           end: end - first,
           marks: marks.map(m => ({...m, time: m.time - first})),
@@ -121,4 +125,8 @@ export async function start(page, out, {
       return stopPromise;
     }
   };
+  stopTimer = setTimeout(() => recording.stop('limit').catch(error => {
+    console.error('CAPTURE STOP FAILED', error.message);
+  }), Math.max(0, maxSeconds * 1000 - (Date.now() - epoch)));
+  return recording;
 }

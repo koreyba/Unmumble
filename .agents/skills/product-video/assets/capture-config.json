@@ -11,6 +11,7 @@
   "initScript": null,
   "probeSeconds": 3,
   "provenance": null,
-  "recording": "native",
-  "browserType": null
+  "recording": "cdp",
+  "browserType": "chromium",
+  "maxSeconds": 60
 }

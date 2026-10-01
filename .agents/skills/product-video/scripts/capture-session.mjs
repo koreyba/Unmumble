@@ -18,7 +18,7 @@ const resolveFile = value => path.resolve(path.dirname(path.resolve(configPath))
 const modulePath = resolveFile(cfg.playwrightModule);
 const require = createRequire(import.meta.url);
 const pw = require(modulePath.endsWith('/index.mjs') ? path.join(path.dirname(modulePath), 'index.js') : modulePath);
-const mode = cfg.recording ?? 'native';
+const mode = cfg.recording ?? 'cdp';
 if (!['native', 'cdp'].includes(mode)) throw new Error('config.recording must be native or cdp');
 if (mode === 'native' && cfg.audio) throw new Error('Native recordVideo has no tab audio. Choose recording=cdp, browserType=chromium for requested tab audio.');
 let contextOptions;
@@ -31,7 +31,7 @@ if (cfg.layout === 'mobile') {
 } else {
   throw new Error('config.layout must be mobile or desktop');
 }
-const engine = cfg.browserType ?? (mode === 'cdp' ? 'chromium' : contextOptions.defaultBrowserType ?? 'chromium');
+const engine = cfg.browserType ?? 'chromium';
 if (!['chromium', 'webkit', 'firefox'].includes(engine)) throw new Error('Invalid config.browserType');
 if (mode === 'cdp' && engine !== 'chromium') throw new Error('CDP capture requires Chromium');
 const videoSize = cfg.videoSize ?? {...contextOptions.viewport};
@@ -92,7 +92,8 @@ try {
     if (mode !== 'cdp') throw new Error('Native recording starts with newPage; use mark(), not startRecording().');
     if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error('Invalid take name');
     if (recordings.some(r => !r.stopped)) throw new Error('Stop the previous take first');
-    const recording = await start(page, path.join(out, name), {...options, audio: !!cfg.audio, captureTitle, provenance: cfg.provenance});
+    for (const recording of recordings) await recording.stop();
+    const recording = await start(page, path.join(out, name), {...options, maxSeconds: cfg.maxSeconds ?? 60, audio: !!cfg.audio, captureTitle, provenance: cfg.provenance});
     recordings.push(recording);
     return recording;
   };
@@ -115,7 +116,7 @@ try {
   failure = error;
 } finally {
   finalUrl = page?.url() ?? cfg.url;
-  const results = await Promise.allSettled(recordings.filter(r => !r.stopped).map(r => r.stop()));
+  const results = await Promise.allSettled(recordings.map(r => r.stop()));
   failure ??= results.find(r => r.status === 'rejected')?.reason;
   try {
     await context?.close();

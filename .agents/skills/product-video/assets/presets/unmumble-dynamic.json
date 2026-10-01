@@ -19,7 +19,7 @@
     "narrative": "Explain why each step helps, then demonstrate its real result",
     "scene_pattern": "standalone animated hook and CTA; demonstration and spoken instructions share the same frame",
     "titles": "large bright words matching narration, readable on a phone",
-    "cursor": "highlight target and show a single click pulse",
+    "cursor": "add in Remotion using verified action coordinates and video timecodes; highlight target and show a single click pulse",
     "zoom": "zoom toward the button, zoom back, click; simplify if result needs focus",
     "transitions": "short, crisp, motivated by the story",
     "demo_layout": "reserve space beside or above/below real UI for large animated instructions; keep controls and results readable"

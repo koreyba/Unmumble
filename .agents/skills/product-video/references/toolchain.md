@@ -18,7 +18,7 @@
 
 Проект `/Users/denys.koreiba/Documents/Unmumble-Reel-2026-09-30`: `LATEST-REEL.md` указывает текущую проверенную версию; исторический результат этой итерации — `Unmumble-Reel-Bella-Funkrock-43s.mp4`. `combined/remotion/` содержит композицию с отдельными hook/CTA и титрами рядом с реальной демонстрацией; `combined/source-timeline.json` — согласованные исходные интервалы. `combined/combined-master.wav` — PCM-мастер, `music-mix/mix_selected.py` — микс выбранной музыки. Перед копированием проверь существование и актуальность указателя. Это адаптируемый образец, а не универсальный шаблон для любого жанра.
 
-Для новой съёмки используй видимый Playwright с полным профилем устройства и встроенным `recordVideo`. Пошаговое управление через persistent Node REPL и конечный CLI-helper описаны в [product-capture.md](product-capture.md); импорт Playwright в REPL выполняй через `createRequire` от проекта. Исторический CDP-recorder остаётся отдельным маршрутом для звука вкладки.
+Для новой съёмки используй видимый Chromium с полным профилем устройства, CDP-кадры JPEG quality 95 и сборку через FFmpeg по capture.json. Запуск через persistent Node REPL и CLI-helper описан в [product-capture.md](product-capture.md); Playwright загружай через `createRequire` от проекта. Запись завершается после действий или по лимиту дубля; звук вкладки захватывается отдельно только по запросу.
 
 ## Remotion и FFmpeg
 

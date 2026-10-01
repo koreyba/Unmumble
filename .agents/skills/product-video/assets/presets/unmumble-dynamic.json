@@ -55,7 +55,11 @@
     "mode": "real_mobile_ui",
     "device": "iPhone, verified profile chosen for this recording",
     "viewport": "use device profile; do not resize to export dimensions",
-    "native_speech_speed": "natural"
+    "native_speech_speed": "natural",
+    "browser": "chromium",
+    "recording": "cdp",
+    "jpeg_quality": 95,
+    "max_seconds": 60
   },
   "cta": {
     "enabled": true,

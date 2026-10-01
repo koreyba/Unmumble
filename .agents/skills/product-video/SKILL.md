@@ -25,7 +25,7 @@ description: Создание и переработка коротких про�
 
 - Для нового продукта выбери стиль по цели. Для продолжения Unmumble можно взять [assets/presets/unmumble-dynamic.json](assets/presets/unmumble-dynamic.json), если пользователь не задал другое.
 - Проверь доступные MCP/CLI, инструменты и исходники перед Computer Use. Для местных инструментов прочитай [references/toolchain.md](references/toolchain.md).
-- При демонстрации сайта прочитай [references/product-capture.md](references/product-capture.md): видимый Playwright, полный профиль устройства (iPhone → WebKit), управление через persistent Node REPL и встроенный `recordVideo`. Закрой записывающий контекст и проверь файл; звук вкладки имеет отдельный Chromium/CDP-маршрут.
+- При демонстрации сайта прочитай [references/product-capture.md](references/product-capture.md): видимый Chromium, полный профиль устройства (в том числе iPhone), управление через persistent Node REPL, CDP-кадры JPEG quality 95 и сборка FFmpeg по реальным временным меткам. Ограничь длительность дубля и останови запись после действий; звук вкладки подключай отдельно только при запросе.
 - При выборе новой музыки прочитай [references/music-selection.md](references/music-selection.md): обязательные четыре отдельные пробы и выбор пользователя до добавления в видео.
 - При экспорте или передаче на платформы прочитай [references/delivery.md](references/delivery.md).
 - Читай специализированные скиллы только для нужного этапа: Remotion для композиции и анимации, FFmpeg для обработки медиа, YuE2 для запрошенной генерации музыки.

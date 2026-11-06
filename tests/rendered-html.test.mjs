@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 import { readGlobalStyles } from "./helpers/styles.mjs";
-import { readWorkspaceSource } from "./helpers/sources.mjs";
+import { readVideosSource, readWorkspaceSource } from "./helpers/sources.mjs";
 
 test("build includes development preview metadata", async () => {
   const bundle = await readFile(
@@ -318,10 +318,7 @@ test("legacy owner migration carries saved videos into the authenticated account
 });
 
 test("Continue watching opens viewed videos in the shared YouGlish trainer", async () => {
-  const page = await readFile(
-    new URL("../app/videos/page.tsx", import.meta.url),
-    "utf8",
-  );
+  const page = await readVideosSource();
 
   assert.match(page, /<h1>Videos<\/h1>/);
   assert.match(page, /Continue watching/);

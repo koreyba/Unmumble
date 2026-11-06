@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readVideosSource } from "./helpers/sources.mjs";
 
 test("signed-in trainer mirrors progress locally and throttles D1 writes", async () => {
   const trainer = await readFile(new URL("../public/trainer.html", import.meta.url), "utf8");
@@ -29,7 +30,7 @@ test("trainer sends initial resume metadata and flushes changed progress on paus
 });
 
 test("Videos uses D1 progress for accounts and anonymous local progress for guests", async () => {
-  const page = await readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8");
+  const page = await readVideosSource();
 
   assert.match(page, /youtubeProgressStorageKey\(sessionUser\.id\)/);
   assert.match(page, /video\.progress/);

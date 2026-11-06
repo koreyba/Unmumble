@@ -1,5 +1,30 @@
 import { expect, test } from "@playwright/test";
 
+test("language keyboard navigation keeps the active option visible", async ({ page }) => {
+  await page.route("**/api/session", (route) => route.fulfill({ json: {
+    user: { id: "user-1", email: "learner@example.com", name: "Learner" },
+  } }));
+  await page.route("**/api/integrations", (route) => route.fulfill({ json: {
+    integrations: [{ provider: "deepl", label: "DeepL", configured: true, source: "default" }],
+  } }));
+  await page.route("**/api/settings/native-language", (route) => route.fulfill({ json: {
+    nativeLanguage: "lang-0",
+    languages: Array.from({ length: 30 }, (_, index) => ({ code: `lang-${index}`, name: `Language ${index}` })),
+  } }));
+
+  await page.goto("/settings");
+  const search = page.getByRole("combobox", { name: "Native Language" });
+  await expect(search).toBeEnabled();
+  await search.click();
+  for (let index = 0; index < 15; index += 1) await search.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "Language 15 LANG-15", exact: true })).toHaveClass("active");
+  await expect.poll(() => page.locator(".native-language-options").evaluate((list) => {
+    const active = list.querySelector(".active")!.getBoundingClientRect();
+    const bounds = list.getBoundingClientRect();
+    return active.top >= bounds.top && active.bottom <= bounds.bottom;
+  })).toBe(true);
+});
+
 test("Settings searches DeepL languages and saves the native language", async ({ page }) => {
   let nativeLanguage = "ru";
   let languagesAvailable = true;
@@ -37,6 +62,12 @@ test("Settings searches DeepL languages and saves the native language", async ({
   await expect(page.getByText("Native language saved. New translations will use it.")).toBeVisible();
   expect(nativeLanguage).toBe("uk");
   await search.click();
+  await search.fill("de");
+  await search.press("Escape");
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("Ukrainian");
+  await search.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
   await search.fill("de");
   await search.press("Shift+Tab");
   await expect(page.getByRole("listbox", { name: "DeepL target languages" })).toHaveCount(0);

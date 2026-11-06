@@ -14,7 +14,9 @@ type Props = Readonly<{
 
 export function NativeLanguageCombobox({ languages, value, onSelect, disabled = false }: Props) {
   const listId = useId();
+  const inputId = `${listId}-input`;
   const root = useRef<HTMLDivElement>(null);
+  const activeOption = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -22,6 +24,10 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
   const results = languages.filter((language) =>
     `${language.name} ${language.code}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
   );
+
+  useEffect(() => {
+    if (open) activeOption.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open, activeIndex, query]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
@@ -37,6 +43,12 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
     setQuery("");
   }
 
+  function openOptions() {
+    setOpen(true);
+    setQuery("");
+    setActiveIndex(0);
+  }
+
   return (
     <div
       className="native-language-combobox"
@@ -48,11 +60,11 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
       }}
       ref={root}
     >
-      <label htmlFor="native-language-search">Native Language</label>
+      <label htmlFor={inputId}>Native Language</label>
       <div className="native-language-control">
         <span className="native-language-control-icon" aria-hidden="true"><GlobeIcon size={18} /></span>
         <input
-          id="native-language-search"
+          id={inputId}
           role="combobox"
           aria-autocomplete="list"
           aria-controls={listId}
@@ -62,7 +74,8 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
           disabled={disabled}
           placeholder={disabled ? "Connect DeepL to choose a language" : "Search languages…"}
           value={open ? query : (selected?.name || value)}
-          onFocus={() => { setOpen(true); setQuery(""); setActiveIndex(0); }}
+          onFocus={openOptions}
+          onClick={() => { if (!open) openOptions(); }}
           onChange={(event) => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
@@ -96,8 +109,10 @@ export function NativeLanguageCombobox({ languages, value, onSelect, disabled = 
               key={language.code}
               onClick={() => choose(language)}
               onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
+              onMouseMove={() => setActiveIndex(index)}
               role="option"
+              ref={index === activeIndex ? activeOption : undefined}
+              tabIndex={-1}
               type="button"
             >
               <span>{language.name}</span>

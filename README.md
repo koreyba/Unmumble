@@ -214,6 +214,7 @@ progress, sessions, and encrypted integration credentials are stored in D1.
 - `npm run test:worker` — run D1 lifecycle tests inside the Cloudflare Workers runtime.
 - `npm run test:e2e` — run desktop and mobile browser journeys (chat recovery, Library/Practice workspace, navigation and theme) in Chromium.
 - `npm run lint` — run ESLint.
+- `npm run typecheck` — check application and test types; local media artifacts in `output/` and `outputs/` are excluded from both typechecking and linting.
 - `npm run preview:chat` — open the signed-in AI Chat in a headed Chromium against the running dev server, answered by an in-memory stub backend (no Google sign-in, D1 or model needed). Options: `--mobile`, `--dark`/`--light`, a URL argument or `PREVIEW_URL`; type "fail" or "propose" in a message to see a failed reply or a vocabulary proposal.
 - `npm run db:generate` — generate a Drizzle migration from schema changes.
 

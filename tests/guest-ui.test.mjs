@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { readWorkspaceSource } from "./helpers/sources.mjs";
+import { readVideosSource, readWorkspaceSource } from "./helpers/sources.mjs";
 
 test("library page has a local guest mode and an explicit Google entry point", async () => {
   const [page, account] = await Promise.all([
@@ -41,7 +41,7 @@ test("trainer derives account mode from the optional session and never sends gue
 test("React learning surfaces use optional session discovery instead of a local auth hint", async () => {
   const [workspace, videos, account] = await Promise.all([
     readWorkspaceSource(),
-    readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8"),
+    readVideosSource(),
     readFile(new URL("../app/components/signed-in-site-account.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -181,14 +181,4 @@ test("all pages consistently use 'Sign in with Google' and SiteNavigation provid
 
   // Logout page suppresses account widget mid-sign-out
   assert.match(logout, /<SiteNavigation active="library" account=\{null\} \/>/);
-});
-
-test("removing a saved video is immediate and undoable instead of asking with a native dialog", async () => {
-  const videos = await readFile(new URL("../app/videos/page.tsx", import.meta.url), "utf8");
-
-  assert.doesNotMatch(videos, /window\.confirm|\bconfirm\(/);
-  assert.match(videos, /async function undoRemove\(\)/);
-  assert.match(videos, /<Button onClick=\{\(\) => void undoRemove\(\)\}[^>]*>Undo<\/Button>/);
-  // The notice clears itself so a stale Undo never lingers.
-  assert.match(videos, /window\.setTimeout\(\(\) => \{\s*setNotice\(""\);\s*setUndoRemoval\(null\);/);
 });

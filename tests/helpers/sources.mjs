@@ -18,6 +18,16 @@ export async function readWorkspaceFile(name) {
   return readFile(new URL(`../../app/components/workspace/${name}`, import.meta.url), "utf8");
 }
 
+/** Videos separates the page, data lifecycle, and card presentation. */
+export async function readVideosSource() {
+  const parts = await Promise.all([
+    "app/videos/page.tsx",
+    "app/components/use-saved-videos.ts",
+    "app/components/saved-video-grid.tsx",
+  ].map((path) => readFile(new URL(`../../${path}`, import.meta.url), "utf8")));
+  return parts.join("\n");
+}
+
 /** Shared UI kit stylesheet (public/ui.css), which the Trainer also loads. */
 export async function readUiKitStyles() {
   return readFile(new URL("../../public/ui.css", import.meta.url), "utf8");

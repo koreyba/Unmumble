@@ -21,6 +21,7 @@
     "test:e2e": "playwright test",
     "preview:chat": "node scripts/preview-chat.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .wrangler --ignore-pattern playwright-report --ignore-pattern test-results",
+    "typecheck": "tsc --noEmit",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
   "dependencies": {
